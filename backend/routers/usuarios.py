@@ -12,6 +12,9 @@ router = APIRouter(prefix="/usuarios")
 @router.post("/", status_code = status.HTTP_201_CREATED, response_model = schemas.UsuarioOut)
 def crear_usuario(user : schemas.UsuarioRegister, db:Session = Depends(get_db)):
     #print(user.password)
+    if db.scalars(select(models.Usuario).where(models.Usuario.email == user.email)).first():
+        raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "El email ya está registrado")
+    
     hashContrasena = utils.hash(user.password)
     user.password = hashContrasena 
     user.tipo = "usuario"
