@@ -14,5 +14,5 @@ def login(user_credential :OAuth2PasswordRequestForm = Depends(), db : Session =
         raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, detail = "Credenciales inválidas")
     if not utils.verify(user_credential.password, user.password):
         raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, detail = "Credenciales inválidas")
-    token_acceso = oauth2.crear_token(data = {"user_id": user.id}) #enviamos un diccionario, porque jwt.encode necesita un diccionario.
+    token_acceso = oauth2.crear_token(data = {"user_id": user.id, "user_type": user.tipo}) #enviamos un diccionario, porque jwt.encode necesita un diccionario.
     return {"token": token_acceso, "token_type": "bearer"}
