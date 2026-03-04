@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, List
 if TYPE_CHECKING:
     from app.models.usuario import Usuario
     from app.models.data import Data
+    from app.models.ml import MLModel
 
 
 class Dataset(Base):
@@ -58,4 +59,11 @@ class Dataset(Base):
         back_populates="dataset",
         cascade="all, delete-orphan",
         doc="Relationship to data entries in this dataset"
+    )
+    
+    ml_models: Mapped[List["MLModel"]] = relationship(
+        "MLModel",
+        back_populates="dataset",
+        cascade="all, delete-orphan",
+        doc="ML models trained with this dataset"
     )

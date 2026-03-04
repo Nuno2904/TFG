@@ -116,47 +116,23 @@ def validate_columns(df: pd.DataFrame) -> Tuple[Optional[str], Optional[str]]:
         Tupla (nombre_columna_fecha, nombre_columna_numerica)
     """
     date_col = find_date_column(df)
+    
+    #asegúrate de que pasamos la fecha en formato YY-MM-DD independientemente del formato original
+    if date_col:
+        try:
+            df[date_col] = pd.to_datetime(df[date_col], errors='coerce', dayfirst=True).dt.strftime('%Y-%m-%d')
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error al convertir la columna de fecha: {str(e)}"
+            )
+    
     numeric_col = find_numeric_column(df, exclude_columns=[date_col] if date_col else [])
     
     return date_col, numeric_col
 
 
-# ============================================================================
-# DATA TRANSFORMATION FUNCTIONS
-# ============================================================================
-#cometna toda la función;
-""""""
-"""
-def transform_date_to_ds_format(date_str: str) -> Optional[str]:
 
-    Transforma una fecha a formato YYYY-MM-DD para la columna DS.
-    
-    Args:
-        date_str: String de fecha en cualquier formato común
-        
-    Returns:
-        Fecha en formato YYYY-MM-DD, None si no es válida
-    
-    common_formats = [
-        '%Y-%m-%d',
-        '%d-%m-%Y',
-        '%m-%d-%Y',
-        '%d/%m/%Y',
-        '%m/%d/%Y',
-        '%Y/%m/%d',
-        '%d.%m.%Y',
-        '%Y.%m.%d',
-    ]
-    
-    for date_format in common_formats:
-        try:
-            parsed_date = datetime.strptime(str(date_str).strip(), date_format)
-            return parsed_date.strftime('%Y-%m-%d')
-        except ValueError:
-            continue
-    
-    return None
-"""
 
 # ============================================================================
 # FILE UPLOAD/RETRIEVAL/DELETION FUNCTIONS
@@ -240,6 +216,15 @@ class FileService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El archivo debe contener una columna con valores numéricos"
+            )
+        
+        #comprobar que el usuario no ha subido ningún archivo con el mismo nombre
+        existing_file = db.scalars(
+            select(Dataset).where((Dataset.user_id == user_id) & (Dataset.name == file.filename)) ).first()
+        if existing_file:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ya has subido un archivo con ese nombre. Por favor, renómbralo e inténtalo de nuevo."
             )
         
         # Procesar y guardar datos
@@ -376,6 +361,36 @@ class FileService:
         dataset_obj = db.scalars(
             select(Dataset).where(
                 (Dataset.id == file_id) & (Dataset.user_id == user_id)
+            )
+        ).first()
+        
+        if not dataset_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Archivo no encontrado o no tienes acceso"
+            )
+        
+        return dataset_obj
+    
+    @staticmethod
+    def get_file_by_name(dataset_name: str, user_id: int, db: Session) -> Optional[Dataset]:
+        """
+        Recupera un dataset específico por su nombre verificando que pertenece al usuario.
+        
+        Args:
+            dataset_name: Nombre del dataset
+            user_id: ID del usuario propietario
+            db: Sesión de base de datos
+            
+        Returns:
+            Objeto Dataset si existe y pertenece al usuario, None en caso contrario
+            
+        Raises:
+            HTTPException: Si el dataset no existe o no pertenece al usuario
+        """
+        dataset_obj = db.scalars(
+            select(Dataset).where(
+                (Dataset.name == dataset_name) & (Dataset.user_id == user_id)
             )
         ).first()
         

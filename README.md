@@ -13,7 +13,9 @@ A production-ready FastAPI application with user management, authentication, and
 - ✅ **FastAPI Framework** - Fast, modern, and intuitive web framework
 - 🔐 **JWT Authentication** - Secure token-based authentication
 - 👤 **User Management** - Complete user CRUD operations
-- 🛡️ **Role-Based Access** - Admin and user role differentiation
+- � **Dataset Management** - Upload and manage datasets
+- 🤖 **ML Model Management** ✨ - Create, train, and manage ML models with automatic storage
+- �🛡️ **Role-Based Access** - Admin and user role differentiation
 - 🗄️ **SQLAlchemy ORM** - Modern async-ready database layer
 - ⚙️ **Pydantic Settings** - Environment-based configuration management
 - 📖 **Auto Documentation** - Interactive API docs (Swagger & ReDoc)
@@ -36,10 +38,18 @@ TFG/
 │   │   └── session.py           # Session management
 │   ├── models/                  # 📊 SQLAlchemy ORM models
 │   │   ├── __init__.py
-│   │   └── usuario.py           # User model
+│   │   ├── usuario.py           # User model
+│   │   ├── dataset.py           # Dataset model
+│   │   ├── data.py              # Data model
+│   │   └── ml.py                # 🤖 ML Model (NEW)
 │   ├── schemas/                 # 📋 Pydantic validation schemas
 │   │   ├── __init__.py
-│   │   └── usuario.py           # User schemas
+│   │   ├── usuario.py           # User schemas
+│   │   └── ml.py                # 🤖 ML Model schemas (NEW)
+│   ├── services/                # 🔧 Business logic services
+│   │   ├── __init__.py
+│   │   ├── file_service.py      # File handling
+│   │   └── ml_storage_service.py # 🤖 ML storage management (NEW)
 │   ├── security/                # 🔐 Authentication & security
 │   │   ├── __init__.py
 │   │   └── security.py          # JWT & password utilities
@@ -50,12 +60,18 @@ TFG/
 │           └── endpoints/       # Route handlers
 │               ├── __init__.py
 │               ├── auth.py      # 🔑 Login endpoint
-│               └── usuarios.py  # 👤 User endpoints
+│               ├── usuarios.py  # 👤 User endpoints
+│               ├── datasets.py  # 📊 Dataset endpoints
+│               └── ml.py        # 🤖 ML Model endpoints (NEW)
 ├── main.py                      # 🚀 Application entry point
 ├── .env                         # 🔐 Environment variables (local)
 ├── .env.example                 # 📝 Environment template
 ├── requirements.txt             # 📦 Python dependencies
-└── README.md                    # 📖 This file
+├── ML_GUIDE.md                  # 📖 ML System documentation (NEW)
+├── README.md                    # 📖 This file
+├── STRUCTURE.md                 # 📊 Project architecture
+├── MIGRATION_GUIDE.md           # 🔄 Migration reference
+└── RESTRUCTURING_SUMMARY.md    # 📝 Change summary
 ```
 
 ## 🚀 Getting Started
@@ -252,6 +268,22 @@ DEBUG=False
 - `PUT /api/v1/usuarios/me` - Update current user
 - `DELETE /api/v1/usuarios/me` - Delete current user
 - `DELETE /api/v1/usuarios/{email}` - Delete user (admin only)
+
+### 📊 Datasets
+- `GET /api/v1/datasets` - Get all user datasets
+- `POST /api/v1/datasets` - Create new dataset
+- `GET /api/v1/datasets/{id}` - Get dataset details
+- `DELETE /api/v1/datasets/{id}` - Delete dataset
+
+### 🤖 ML Models ✨ NEW
+- `POST /api/v1/models` - Create new ML model
+- `GET /api/v1/models` - Get all user ML models
+- `GET /api/v1/models/{model_id}` - Get model details
+- `GET /api/v1/models/dataset/{dataset_id}` - Get models by dataset
+- `PUT /api/v1/models/{model_id}` - Update model
+- `DELETE /api/v1/models/{model_id}` - Delete model
+
+For detailed ML Model documentation, see [ML_GUIDE.md](ML_GUIDE.md)
 
 ## 🤝 Contributing
 

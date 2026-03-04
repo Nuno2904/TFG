@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
+    # 📂 Storage Configuration
+    STORAGE_PATH: str = "/app/storage"
+    MODEL_STORAGE_PATH: str = "/app/storage/models"
+    
     # 📱 Application Configuration
     APP_NAME: str = "TFG API"
     APP_VERSION: str = "1.0.0"

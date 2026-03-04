@@ -110,6 +110,23 @@ Welcome to the restructured FastAPI project! Here's a guide to all available doc
   - Production readiness confirmation
   - Next steps
 
+#### **ML_GUIDE.md** ✨ NEW
+- **Length**: ~700 lines
+- **Time**: 20 minutes
+- **For**: Understanding the ML models system
+- **Contains**:
+  - ML database table schema
+  - Relationship diagrams (Usuario ↔ Dataset ↔ MLModel)
+  - Complete file structure for ML components
+  - Explanation of each ML file
+  - All API endpoints with examples
+  - Storage organization and paths
+  - Security & permissions architecture
+  - Frontend integration guide
+  - Configuration instructions
+  - Complete workflow example
+  - Troubleshooting guide
+
 #### **STRUCTURE.md**
 Already listed above.
 
@@ -197,6 +214,7 @@ All files have comprehensive docstrings explaining:
 | MIGRATION_GUIDE.md | ~400 | 15 min | Changes |
 | RESTRUCTURING_SUMMARY.md | ~600 | 20 min | Complete overview |
 | CHECKLIST.md | ~300 | 10 min | Verification |
+| **ML_GUIDE.md** ✨ | **~700** | **20 min** | **ML System** |
 | Code docstrings | ~2000 | 30 min | Implementation |
 | **Total** | **~4000** | **~90 min** | **Everything** |
 

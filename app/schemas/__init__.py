@@ -8,6 +8,13 @@ from app.schemas.usuario import (
     Token,
     TokenData,
 )
+from app.schemas.ml import (
+    MLModelBase,
+    MLModelCreate,
+    MLModelUpdate,
+    MLModelOut,
+    MLModelDetailOut,
+)
 
 __all__ = [
     "UsuarioBase",
@@ -16,4 +23,9 @@ __all__ = [
     "UsuarioOut",
     "Token",
     "TokenData",
+    "MLModelBase",
+    "MLModelCreate",
+    "MLModelUpdate",
+    "MLModelOut",
+    "MLModelDetailOut",
 ]

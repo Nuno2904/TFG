@@ -59,7 +59,7 @@ def get_datasets(
         )
 
 
-@router.get("/{dataset_id}/data", status_code=status.HTTP_200_OK)
+@router.get("/id/{dataset_id}/data", status_code=status.HTTP_200_OK)
 def get_dataset_data(
     dataset_id: int,
     current_user: Usuario = Depends(get_current_user),
@@ -98,3 +98,45 @@ def get_dataset_data(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al obtener los datos del dataset: {str(e)}"
         )
+
+
+@router.get("/{dataset_name}/data", status_code=status.HTTP_200_OK)
+def get_dataset_data_by_name(
+    dataset_name: str,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene todos los data points de un dataset específico por su nombre.
+    
+    Solo el propietario del dataset puede acceder.
+    Los puntos se devuelven ordenados por DS (timestamp ascendente).
+    
+    Response fields:
+        - DS: Timestamp en formato ISO (datetime)
+        - y: Valor numérico del punto de datos
+    """
+    try:
+        dataset = FileService.get_file_by_name(dataset_name, current_user.id, db)
+        
+        points_list = [
+            {
+                "DS": str(data_point.DS),
+                "y": data_point.y
+            }
+            for data_point in dataset.data_entries
+        ]
+        
+        return {
+            "dataset_name": dataset_name,
+            "total_points": len(points_list),
+            "data": points_list
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener los datos del dataset: {str(e)}"
+        )
+    

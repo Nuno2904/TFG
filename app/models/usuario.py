@@ -12,6 +12,7 @@ from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.dataset import Dataset
+    from app.models.ml import MLModel
 
 
 class Usuario(Base):
@@ -70,11 +71,19 @@ class Usuario(Base):
     )
     
     
+    
     datasets: Mapped[List["Dataset"]] = relationship(
         "Dataset",
         back_populates="usuario",
         cascade="all, delete-orphan",
         doc="Datasets uploaded by this user"
+    )
+    
+    ml_models: Mapped[List["MLModel"]] = relationship(
+        "MLModel",
+        back_populates="usuario",
+        cascade="all, delete-orphan",
+        doc="ML models created by this user"
     )
     
     
