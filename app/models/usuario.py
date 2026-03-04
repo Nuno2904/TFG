@@ -6,8 +6,10 @@ Defines user structure with email, password, and type fields.
 """
 
 from sqlalchemy import Column, Integer, String, TIMESTAMP, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+#from websockets import Data
 from app.db.base import Base
+from app.models.data import Data
 
 
 class Usuario(Base):
@@ -64,6 +66,14 @@ class Usuario(Base):
         server_default=func.now(),
         doc="User creation timestamp"
     )
+    
+    
+    data_entries: Mapped[list["Data"]] = relationship(
+        "Data",
+        back_populates="usuario",
+        cascade="all, delete-orphan"
+    )
+    
     
     def __repr__(self) -> str:
         """String representation of Usuario object."""
