@@ -7,9 +7,11 @@ Defines user structure with email, password, and type fields.
 
 from sqlalchemy import Column, Integer, String, TIMESTAMP, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-#from websockets import Data
 from app.db.base import Base
-from app.models.data import Data
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.dataset import Dataset
 
 
 class Usuario(Base):
@@ -68,10 +70,11 @@ class Usuario(Base):
     )
     
     
-    data_entries: Mapped[list["Data"]] = relationship(
-        "Data",
+    datasets: Mapped[List["Dataset"]] = relationship(
+        "Dataset",
         back_populates="usuario",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        doc="Datasets uploaded by this user"
     )
     
     

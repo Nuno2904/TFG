@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, delete
 
 from app.models.data import Data
+from app.models.dataset import Dataset
 from app.models.usuario import Usuario
 
 
@@ -66,14 +67,16 @@ def find_date_column(df: pd.DataFrame) -> Optional[str]:
         Nombre de la columna con fechas, None si no encuentra
     """
     for column in df.columns:
-        try:
-            pd.to_datetime(df[column], format='%Y-%m-%d', errors='coerce')
-            # Si al menos el 50% de los valores se pueden convertir a fecha, es probablemente la columna de fechas
-            if pd.to_datetime(df[column], format='%Y-%m-%d', errors='coerce').notna().sum() / len(df) >= 0.5:
-                return column
-        except:
-            continue
+        parsed = pd.to_datetime(
+            df[column],
+            errors="coerce",
+            dayfirst=True
+        )
+
+        if parsed.notna().sum() / len(df) >= 0.5:
+            return column
     return None
+
 
 
 def find_numeric_column(df: pd.DataFrame, exclude_columns: List[str] = None) -> Optional[str]:
@@ -121,9 +124,11 @@ def validate_columns(df: pd.DataFrame) -> Tuple[Optional[str], Optional[str]]:
 # ============================================================================
 # DATA TRANSFORMATION FUNCTIONS
 # ============================================================================
-
+#cometna toda la función;
+""""""
+"""
 def transform_date_to_ds_format(date_str: str) -> Optional[str]:
-    """
+
     Transforma una fecha a formato YYYY-MM-DD para la columna DS.
     
     Args:
@@ -131,7 +136,7 @@ def transform_date_to_ds_format(date_str: str) -> Optional[str]:
         
     Returns:
         Fecha en formato YYYY-MM-DD, None si no es válida
-    """
+    
     common_formats = [
         '%Y-%m-%d',
         '%d-%m-%Y',
@@ -151,7 +156,7 @@ def transform_date_to_ds_format(date_str: str) -> Optional[str]:
             continue
     
     return None
-
+"""
 
 # ============================================================================
 # FILE UPLOAD/RETRIEVAL/DELETION FUNCTIONS
@@ -213,7 +218,7 @@ class FileService:
         # Leer archivo según tipo
         try:
             if file.filename.lower().endswith('.csv'):
-                df = pd.read_csv(BytesIO(file_content))
+                df = pd.read_csv(BytesIO(file_content), sep =None, engine='python')
             else:  # xlsx
                 df = pd.read_excel(BytesIO(file_content))
         except Exception as e:
@@ -241,27 +246,43 @@ class FileService:
         data_entries = []
         errors = []
         
+        # Crear el Dataset primero
+        try:
+            dataset = Dataset(
+                user_id=user_id,
+                name=file.filename
+            )
+            db.add(dataset)
+            db.commit()
+            db.refresh(dataset)
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al crear el dataset: {str(e)}"
+            )
+        
         for idx, row in df.iterrows():
             try:
                 # Transformar fecha a formato YYYY-MM-DD
-                date_value = row[date_col]
-                ds_value = transform_date_to_ds_format(str(date_value))
                 
-                if ds_value is None:
-                    errors.append(f"Fila {idx + 1}: Fecha inválida")
-                    continue
+               # ds_value = transform_date_to_ds_format(str(date_value))
+                
+                #if ds_value is None:
+                #    errors.append(f"Fila {idx + 1}: Fecha inválida")
+                #    continue
                 
                 # Obtener valor numérico
                 numeric_value = pd.to_numeric(row[numeric_col], errors='coerce')
-                
+                date_value = row[date_col]
                 if pd.isna(numeric_value):
                     errors.append(f"Fila {idx + 1}: Valor numérico inválido")
                     continue
                 
                 # Crear objeto Data
-                data_obj = data(
-                    user_id=user_id,
-                    DS=ds_value,
+                data_obj = Data(
+                    dataset_id=dataset.id,
+                    DS=date_value,
                     y=float(numeric_value)
                 )
                 data_entries.append(data_obj)
@@ -297,23 +318,28 @@ class FileService:
             # Advertencia: algunas filas tuvieron problemas pero otras se guardaron
             return {
                 "success": True,
+                "dataset": dataset,
                 "data_entries": data_entries,
                 "warnings": errors
             }
         
-        return data_entries
+        return {
+            "success": True,
+            "dataset": dataset,
+            "data_entries": data_entries
+        }
     
     @staticmethod
-    def get_user_files(user_id: int, db: Session) -> List[Data]:
+    def get_user_files(user_id: int, db: Session) -> List[Dataset]:
         """
-        Recupera todos los archivos de un usuario.
+        Recupera todos los datasets de un usuario.
         
         Args:
             user_id: ID del usuario
             db: Sesión de base de datos
             
         Returns:
-            Lista de objetos Data del usuario
+            Lista de objetos Dataset del usuario
             
         Raises:
             HTTPException: Si el usuario no existe
@@ -325,49 +351,49 @@ class FileService:
                 detail="Usuario no encontrado"
             )
         
-        data_entries = db.scalars(
-            select(Data).where(Data.user_id == user_id)
+        datasets = db.scalars(
+            select(Dataset).where(Dataset.user_id == user_id)
         ).all()
         
-        return data_entries
+        return datasets
     
     @staticmethod
-    def get_file_by_id(file_id: int, user_id: int, db: Session) -> Optional[Data]:
+    def get_file_by_id(file_id: int, user_id: int, db: Session) -> Optional[Dataset]:
         """
-        Recupera un archivo específico verificando que pertenece al usuario.
+        Recupera un dataset específico verificando que pertenece al usuario.
         
         Args:
-            file_id: ID del archivo
+            file_id: ID del dataset
             user_id: ID del usuario propietario
             db: Sesión de base de datos
             
         Returns:
-            Objeto Data si existe y pertenece al usuario, None en caso contrario
+            Objeto Dataset si existe y pertenece al usuario, None en caso contrario
             
         Raises:
-            HTTPException: Si el archivo no existe o no pertenece al usuario
+            HTTPException: Si el dataset no existe o no pertenece al usuario
         """
-        data_obj = db.scalars(
-            select(Data).where(
-                (Data.id == file_id) & (Data.user_id == user_id)
+        dataset_obj = db.scalars(
+            select(Dataset).where(
+                (Dataset.id == file_id) & (Dataset.user_id == user_id)
             )
         ).first()
         
-        if not data_obj:
+        if not dataset_obj:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Archivo no encontrado o no tienes acceso"
             )
         
-        return data_obj
+        return dataset_obj
     
     @staticmethod
     def delete_file(file_id: int, user_id: int, db: Session) -> dict:
         """
-        Elimina un archivo verificando que pertenece al usuario.
+        Elimina un dataset verificando que pertenece al usuario.
         
         Args:
-            file_id: ID del archivo a eliminar
+            file_id: ID del dataset a eliminar
             user_id: ID del usuario propietario
             db: Sesión de base de datos
             
@@ -375,13 +401,13 @@ class FileService:
             Diccionario con confirmación de eliminación
             
         Raises:
-            HTTPException: Si el archivo no existe o no pertenece al usuario
+            HTTPException: Si el dataset no existe o no pertenece al usuario
         """
-        # Verificar que el archivo existe y pertenece al usuario
-        data_obj = FileService.get_file_by_id(file_id, user_id, db)
+        # Verificar que el dataset existe y pertenece al usuario
+        dataset_obj = FileService.get_file_by_id(file_id, user_id, db)
         
         try:
-            db.delete(data_obj)
+            db.delete(dataset_obj)
             db.commit()
             return {
                 "message": "Archivo eliminado correctamente",

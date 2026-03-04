@@ -10,7 +10,7 @@ from typing import List
 
 from app.services.file_service import FileService
 from app.db.session import get_db
-from app.models import Usuario, Data
+from app.models import Usuario, Dataset, Data
 from app.security import get_current_user
 
 
@@ -46,17 +46,19 @@ async def upload_file(
         result = await FileService.upload_file(file, current_user.id, db)
         
         # Verificar si hay warnings
-        if isinstance(result, dict) and "warnings" in result:
+        if "warnings" in result:
             return {
                 "message": "Archivo subido con advertencias",
+                "dataset": result["dataset"],
                 "entries_count": len(result["data_entries"]),
                 "warnings": result["warnings"]
             }
         
         return {
             "message": "Archivo subido correctamente",
-            "entries_count": len(result),
-            "data": result
+            "dataset": result["dataset"],
+            "entries_count": len(result["data_entries"]),
+            "data": result["data_entries"]
         }
     except HTTPException as e:
         raise e
@@ -101,19 +103,19 @@ def get_file(
     db: Session = Depends(get_db)
 ):
     """
-    Obtiene un archivo específico por ID.
+    Obtiene un dataset específico por ID con todos sus datos relacionados.
     
     Solo el usuario propietario puede acceder a él.
     """
     try:
-        file_data = FileService.get_file_by_id(file_id, current_user.id, db)
+        dataset = FileService.get_file_by_id(file_id, current_user.id, db)
         
         return {
-            "file_id": file_data.id,
-            "user_id": file_data.user_id,
-            "DS": file_data.DS,
-            "y": file_data.y,
-            "data": file_data
+            "dataset_id": dataset.id,
+            "user_id": dataset.user_id,
+            "name": dataset.name,
+            "data_entries": dataset.data_entries,
+            "total_entries": len(dataset.data_entries)
         }
     except HTTPException as e:
         raise e
