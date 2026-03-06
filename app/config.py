@@ -28,8 +28,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # 📂 Storage Configuration
-    STORAGE_PATH: str = "/app/storage"
-    MODEL_STORAGE_PATH: str = "/app/storage/models"
+    STORAGE_PATH: str = "storage"
+    MODEL_STORAGE_PATH: str = "storage/models"
     
     # 📱 Application Configuration
     APP_NAME: str = "TFG API"

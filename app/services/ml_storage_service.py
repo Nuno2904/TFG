@@ -5,9 +5,11 @@ Manages ML model storage paths and file organization.
 Handles directory creation and path management for model files.
 """
 
-import os
+import logging
 from pathlib import Path
-from app.config import settings
+from app.paths import MODELS_DIR
+
+logger = logging.getLogger(__name__)
 
 
 class MLStorageService:
@@ -15,12 +17,11 @@ class MLStorageService:
     Service for managing ML model storage.
     
     Organizes models in the following structure:
-    /app/storage/models/
+    storage/models/
     ├── user_{user_id}/
     │   ├── dataset_{dataset_id}/
     │   │   ├── {model_name}/
-    │   │   │   ├── model.pkl
-    │   │   │   ├── metadata.json
+    │   │   │   ├── model.json
     │   │   │   └── ...
     """
     
@@ -37,8 +38,10 @@ class MLStorageService:
         Returns:
             Path object pointing to the model directory
         """
-        base_path = Path(settings.MODEL_STORAGE_PATH)
-        model_dir = base_path / f"user_{user_id}" / f"dataset_{dataset_id}" / model_name
+        model_dir = MODELS_DIR / f"user_{user_id}" / f"dataset_{dataset_id}" / model_name
+        
+        logger.debug(f"Model directory path: {model_dir}")
+        
         return model_dir
     
     @staticmethod
@@ -58,7 +61,14 @@ class MLStorageService:
             OSError: If directory creation fails
         """
         model_dir = MLStorageService.get_model_directory(user_id, dataset_id, model_name)
-        model_dir.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            model_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"✅ Created model directory: {model_dir}")
+        except Exception as e:
+            logger.error(f"❌ Failed to create model directory {model_dir}: {str(e)}")
+            raise OSError(f"Failed to create directory {model_dir}: {str(e)}")
+        
         return model_dir
     
     @staticmethod
@@ -72,8 +82,7 @@ class MLStorageService:
         Returns:
             Path object pointing to the user's models directory
         """
-        base_path = Path(settings.MODEL_STORAGE_PATH)
-        user_dir = base_path / f"user_{user_id}"
+        user_dir = MODELS_DIR / f"user_{user_id}"
         return user_dir
     
     @staticmethod
@@ -88,8 +97,7 @@ class MLStorageService:
         Returns:
             Path object pointing to the dataset models directory
         """
-        base_path = Path(settings.MODEL_STORAGE_PATH)
-        dataset_dir = base_path / f"user_{user_id}" / f"dataset_{dataset_id}"
+        dataset_dir = MODELS_DIR / f"user_{user_id}" / f"dataset_{dataset_id}"
         return dataset_dir
     
     @staticmethod
@@ -128,10 +136,12 @@ class MLStorageService:
         try:
             if model_dir.exists():
                 shutil.rmtree(model_dir)
+                logger.info(f"✅ Deleted model directory: {model_dir}")
                 return True
+            logger.warning(f"⚠️ Model directory does not exist: {model_dir}")
             return False
         except Exception as e:
-            print(f"Error deleting model directory: {e}")
+            logger.error(f"❌ Error deleting model directory {model_dir}: {str(e)}")
             return False
     
     @staticmethod

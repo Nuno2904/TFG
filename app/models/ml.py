@@ -21,6 +21,13 @@ if TYPE_CHECKING:
     from app.models.dataset import Dataset
 
 
+class ModelType(str, enum.Enum):
+    """Enum for available ML model types."""
+    PROPHET = "prophet"
+    ARIMA = "arima"
+    # Future models can be added here
+
+
 class ModelStatus(str, enum.Enum):
     """Enum for model training status."""
     TRAINED = "entrenado"
@@ -39,6 +46,7 @@ class MLModel(Base):
         user_id: Foreign key referencing the user who created the model
         dataset_id: Foreign key referencing the dataset used for training
         name: Name of the ML model
+        model_type: Type of ML model (prophet, etc)
         created_at: Timestamp of model creation
         model_path: Path where the model file is stored
         status: Current status of the model (trained/training/error)
@@ -76,6 +84,14 @@ class MLModel(Base):
         String,
         nullable=False,
         doc="Name of the ML model"
+    )
+    
+    # 🤖 Model Type
+    model_type: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default="prophet",
+        doc="Type of ML model (prophet, etc)"
     )
     
     # ⏰ Creation Timestamp

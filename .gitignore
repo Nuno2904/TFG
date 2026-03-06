@@ -48,6 +48,10 @@ dmypy.json
 # 📁 Virtual Environment
 venv/
 ENV/
+
+# 📂 Storage (Models, uploaded files)
+storage/
+/storage/
 env/
 
 # 💾 Database
