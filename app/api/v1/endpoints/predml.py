@@ -294,7 +294,7 @@ def get_plots(
         future_df = prophet_model.make_future_dataframe(periods=periods)
         forecast = prophet_model.predict(future_df)
         
-        # Helper function to convert matplotlib figure to base64
+                # Helper function to convert matplotlib figure to base64
         def fig_to_base64(fig):
             """Convert matplotlib figure to base64 string"""
             buffer = io.BytesIO()
