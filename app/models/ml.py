@@ -25,7 +25,6 @@ class ModelType(str, enum.Enum):
     """Enum for available ML model types."""
     PROPHET = "prophet"
     ARIMA = "arima"
-    # Future models can be added here
 
 
 class ModelStatus(str, enum.Enum):
@@ -46,7 +45,7 @@ class MLModel(Base):
         user_id: Foreign key referencing the user who created the model
         dataset_id: Foreign key referencing the dataset used for training
         name: Name of the ML model
-        model_type: Type of ML model (prophet, etc)
+        model_type: Type of ML model (prophet, arima, etc)
         created_at: Timestamp of model creation
         model_path: Path where the model file is stored
         status: Current status of the model (trained/training/error)
@@ -91,9 +90,10 @@ class MLModel(Base):
         String,
         nullable=False,
         default="prophet",
-        doc="Type of ML model (prophet, etc)"
+        doc="Type of ML model (prophet, arima, etc)"
     )
     
+    # ⏰ Creation Timestamp
     # ⏰ Creation Timestamp
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True),

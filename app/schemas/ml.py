@@ -8,7 +8,6 @@ Defines data structures for API endpoints related to ML models.
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, Literal
-from app.models.ml import ModelType
 
 
 class MLModelBase(BaseModel):
@@ -29,7 +28,7 @@ class MLModelCreate(MLModelBase):
         - model_type: Type of model (prophet, arima, etc) - triggers automatic training
     
     The model_path is generated automatically based on:
-    /app/storage/models/user_{user_id}/dataset_{dataset_id}/{model_name}
+    storage/models/user_{user_id}/dataset_{dataset_id}/{model_name}
     
     Upon creation, the model is immediately trained in background with the chosen dataset.
     """
@@ -61,7 +60,7 @@ class MLModelOut(BaseModel):
     user_id: int = Field(..., description="ID of the user who created the model")
     dataset_id: int = Field(..., description="ID of the dataset used for training")
     name: str = Field(..., description="Name of the ML model")
-    model_type: str = Field(..., description="Type of ML model (prophet)")
+    model_type: str = Field(..., description="Type of ML model (prophet, arima, etc)")
     created_at: datetime = Field(..., description="Model creation date")
     model_path: str = Field(..., description="File path where the model is stored")
     status: str = Field(..., description="Model status: entrenado, en_entrenamiento, or error")

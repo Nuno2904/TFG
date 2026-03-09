@@ -101,7 +101,7 @@ class MLStorageService:
         return dataset_dir
     
     @staticmethod
-    def get_model_file_path(user_id: int, dataset_id: int, model_name: str, filename: str = "model.pkl") -> Path:
+    def get_model_file_path(user_id: int, dataset_id: int, model_name: str, filename: str = "model.json") -> Path:
         """
         Get the full file path for a model file.
         
@@ -158,3 +158,43 @@ class MLStorageService:
             String with relative path format: user_{user_id}/dataset_{dataset_id}/{model_name}
         """
         return f"user_{user_id}/dataset_{dataset_id}/{model_name}"
+    
+    @staticmethod
+    def load_prophet_model_from_directory(model_dir_path: str):
+        """
+        Load a Prophet model from a directory by finding and loading the .json file.
+        
+        This function automatically searches for .json files in the model directory,
+        which is necessary because model_path points to a directory, not a file.
+        
+        Args:
+            model_dir_path (str): Path to the model directory
+            
+        Returns:
+            Prophet model object loaded from JSON
+            
+        Raises:
+            FileNotFoundError: If no .json file found in directory
+            Exception: If loading fails
+        """
+        from prophet.serialize import model_from_json
+        
+        model_dir = Path(model_dir_path)
+        
+        # Search for .json file in directory
+        json_files = list(model_dir.glob("*.json"))
+        
+        if not json_files:
+            raise FileNotFoundError(f"No JSON model file found in directory: {model_dir}")
+        
+        # Use the first .json file found
+        model_file = json_files[0]
+        logger.info(f"📁 Loading Prophet model from: {model_file}")
+        
+        # Load model from JSON
+        with open(model_file, 'r') as f:
+            model_json = f.read()
+            prophet_model = model_from_json(model_json)
+        
+        logger.info(f"✅ Prophet model loaded successfully")
+        return prophet_model

@@ -3,6 +3,7 @@
 #si el modelo no está entrenado, devolvemos un error diciendo que el modelo no está entrenado y que no se pueden hacer predicciones.
 #tiene que poder predecir: intervalso de confianza, erores relativ, error absoluto, ha de ser capaz de ostrar varios tipos de gráficas. 
 from prophet.serialize import model_to_json, model_from_json
+from prophet.plot import plot_plotly, plot_components_plotly
 import logging
 from pathlib import Path
 from sqlalchemy.orm import Session
@@ -10,7 +11,15 @@ from app.services.ml_storage_service import MLStorageService
 from app.models.data import Data
 from app.models.ml import MLModel
 import matplotlib.pyplot as plt
-from prophet.plot import plot_plotly, plot_components_plotly
+
+# Importar plotly de forma segura
+try:
+    import plotly.graph_objects as go
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+    logger_setup = logging.getLogger(__name__)
+    logger_setup.warning("⚠️ Plotly not installed. Interactive plots will not be available.")
 
 
 logger = logging.getLogger(__name__)
@@ -23,7 +32,7 @@ def predict_prophet_model(
     Realiza predicciones utilizando un modelo Prophet previamente entrenado.
     
     Args:
-        model_path (str): Ruta local donde se encuentra el modelo guardado.
+        model_path (str): Ruta local donde se encuentra el directorio del modelo guardado.
         future_periods (int): Número de períodos futuros a predecir (default: 30).
     
     Returns:
@@ -37,20 +46,18 @@ def predict_prophet_model(
     try:
         logger.info(f"🔍 Cargando modelo Prophet desde: {model_path}")
         
-        # Cargar el modelo desde el archivo json
-        with open(model_path, 'r') as f:
-            model_json = f.read()
-            model = model_from_json(model_json)
+        # Usar la función centralizada que busca el .json en el directorio
+        prophet_model = MLStorageService.load_prophet_model_from_directory(model_path)
         
         logger.info("✅ Modelo cargado exitosamente")
         
         # Crear un DataFrame vacío para generar las fechas futuras
-        future_df = model.make_future_dataframe(periods=future_periods)
+        future_df = prophet_model.make_future_dataframe(periods=future_periods)
         
         logger.info(f"📅 Generando predicciones para los próximos {future_periods} períodos...")
         
         # Realizar la predicción
-        forecast = model.predict(future_df)
+        forecast = prophet_model.predict(future_df)
         
         logger.info("✅ Predicciones generadas exitosamente")
         
@@ -78,7 +85,8 @@ def prophet_plot(model, forecast):
         dict: Diccionario con las figuras de los gráficos generados.
     """
     try:
-        
+        if not PLOTLY_AVAILABLE:
+            raise ImportError("Plotly is not installed. Install it with: pip install plotly")
         
         # Gráfico de la predicción
         fig1 = plot_plotly(model, forecast)

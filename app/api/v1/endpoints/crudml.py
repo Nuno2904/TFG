@@ -154,6 +154,18 @@ def create_ml_model(
             detail="Dataset not found or does not belong to the current user"
         )
     
+    # ✅ Check if model with same name already exists for this user
+    existing_model = db.query(MLModel).filter(
+        MLModel.user_id == current_user.id,
+        MLModel.name == model_data.name
+    ).first()
+    
+    if existing_model:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"You already have a model named '{model_data.name}'. Model names must be unique per user."
+        )
+    
     # Generate model storage path
     try:
         model_dir = MLStorageService.create_model_directory(
@@ -191,7 +203,7 @@ def create_ml_model(
         model_id=new_model.id,
         user_id=current_user.id,
         dataset_id=model_data.dataset_id,
-        model_name=model_data,
+        model_name=model_data.name,
         model_type=model_data.model_type,
         model_path=model_path
     )
