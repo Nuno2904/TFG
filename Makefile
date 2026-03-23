@@ -16,7 +16,7 @@ install-dev:  ## Install with development dependencies
 	pip install black flake8 isort mypy pytest pytest-asyncio
 
 run:  ## Run the application
-	uvicorn main:app --reload
+	uvicorn main:app --reload --no-access-log
 
 format:  ## Format code with black and isort
 	@echo "🎨 Formatting code..."

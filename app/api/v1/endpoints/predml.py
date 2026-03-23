@@ -21,6 +21,7 @@ from app.models import MLModel, Usuario, Dataset
 from app.models.ml import ModelStatus
 from app.security import get_current_user
 from app.ml.prophet.predict import predict_prophet_model, prophet_plot
+from app.ml.arima.predict import predict_arima_model, get_training_samples
 from app.services.ml_storage_service import MLStorageService
 
 logger = logging.getLogger(__name__)
@@ -64,12 +65,38 @@ class PredictionResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# ARIMA SCHEMAS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class ARIMAForecastPoint(BaseModel):
+    """Single ARIMA forecast point."""
+    
+    date: str = Field(..., description="Forecast date (YYYY-MM-DD)")
+    yhat: float = Field(..., description="Predicted value")
+    yhat_lower: Optional[float] = Field(None, description="95% lower confidence bound")
+    yhat_upper: Optional[float] = Field(None, description="95% upper confidence bound")
+
+
+class ARIMAPredictionResponse(BaseModel):
+    """Response for ARIMA predictions."""
+    
+    model_id: int = Field(..., description="ID of model used")
+    model_name: str = Field(..., description="Name of the model")
+    model_type: str = Field(..., description="Model type (arima)")
+    dataset_id: int = Field(..., description="ID of training dataset")
+    periods: int = Field(..., description="Number of periods predicted")
+    forecast: List[ARIMAForecastPoint] = Field(..., description="List of predictions")
+    created_at: str = Field(..., description="Timestamp of prediction generation")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # ROUTER
 # ═══════════════════════════════════════════════════════════════════════════
 
 router = APIRouter(
     prefix="/predictions",
-    tags=["🔮 Prophet Predictions"],
+    tags=["🔮 ML Predictions (Prophet & ARIMA)"],
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_404_NOT_FOUND: {"description": "Model not found"},
@@ -332,4 +359,417 @@ def get_plots(
         )
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔮 ARIMA PREDICT ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.post(
+    "/arima/predict",
+    response_model=ARIMAPredictionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Make ARIMA Prediction",
+    description="Make predictions using a trained ARIMA ML model"
+)
+def predict_arima(
+    request: PredictionRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    🔮 Make predictions with a trained ARIMA model.
     
+    Uses the specified ARIMA model to generate forecasts with confidence intervals.
+    
+    Args:
+        request: Prediction request with model_id and periods
+        current_user: Authenticated user
+        db: Database session
+        
+    Returns:
+        Predictions with forecast values and 95% confidence intervals
+    """
+    try:
+        # Get and validate model
+        model = get_trained_model(request.model_id, current_user.id, db)
+        
+        # Verify it's an ARIMA model
+        if model.model_type.lower() != "arima":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Model is not ARIMA type. Model type: {model.model_type}"
+            )
+        
+        logger.info(f"Making ARIMA prediction with model {model.id} for {request.periods} periods")
+        
+        # Call ARIMA prediction service
+        prediction_result = predict_arima_model(
+            model_path=model.model_path,
+            future_periods=request.periods
+        )
+        
+        return {
+            "model_id": model.id,
+            "model_name": model.name,
+            "model_type": "arima",
+            "dataset_id": model.dataset_id,
+            "periods": request.periods,
+            "forecast": prediction_result['forecast'],
+            "created_at": datetime.now().isoformat()
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ARIMA prediction error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"ARIMA prediction failed: {str(e)}"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 📊 ARIMA MODEL INFO ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get(
+    "/arima/models/{model_id}/info",
+    status_code=status.HTTP_200_OK,
+    summary="Get ARIMA Model Information",
+    description="Get detailed information about a trained ARIMA model"
+)
+def get_arima_model_info(
+    model_id: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    📊 Get detailed information about an ARIMA model.
+    
+    Includes model parameters (p,d,q), training metrics (AIC, BIC, RMSE, MAE).
+    
+    Args:
+        model_id: ID of the model
+        current_user: Authenticated user
+        db: Database session
+        
+    Returns:
+        ARIMA model details with training parameters and metrics
+    """
+    try:
+        model = db.query(MLModel).filter(
+            MLModel.id == model_id,
+            MLModel.user_id == current_user.id
+        ).first()
+        
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Model not found"
+            )
+        
+        if model.model_type.lower() != "arima":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Model is not ARIMA type. Model type: {model.model_type}"
+            )
+        
+        # Load metadata
+        metadata = MLStorageService.load_arima_metadata(model.model_path)
+        
+        return {
+            "id": model.id,
+            "name": model.name,
+            "model_type": "arima",
+            "path": model.model_path,
+            "status": model.status,
+            "dataset_id": model.dataset_id,
+            "created_at": model.created_at.isoformat() if model.created_at else None,
+            "error_message": model.error_message,
+            "training_metrics": {
+                "order": metadata.get('order'),
+                "aic": metadata.get('aic'),
+                "bic": metadata.get('bic'),
+                "rmse": metadata.get('rmse'),
+                "mae": metadata.get('mae'),
+                "data_points": metadata.get('longitud', metadata.get('length'))
+            }
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving ARIMA model info: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve model information: {str(e)}"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 📈 ARIMA TRAINING DATA ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get(
+    "/arima/models/{model_id}/training-data",
+    status_code=status.HTTP_200_OK,
+    summary="Get ARIMA Training Data",
+    description="Get training data samples used to train the ARIMA model"
+)
+def get_arima_training_data(
+    model_id: int,
+    samples: int = 100,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    📈 Get training data samples from an ARIMA model.
+    
+    Useful for visualizing historical data alongside predictions.
+    
+    Args:
+        model_id: ID of the model
+        samples: Number of training samples to return (default: 100)
+        current_user: Authenticated user
+        db: Database session
+        
+    Returns:
+        Historical training data points with dates and values
+    """
+    try:
+        model = db.query(MLModel).filter(
+            MLModel.id == model_id,
+            MLModel.user_id == current_user.id
+        ).first()
+        
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Model not found"
+            )
+        
+        if model.model_type.lower() != "arima":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Model is not ARIMA type. Model type: {model.model_type}"
+            )
+        
+        logger.info(f"Retrieving training data for model {model_id}")
+        
+        training_data = get_training_samples(model.model_path, n_samples=samples)
+        
+        return {
+            "model_id": model.id,
+            "model_name": model.name,
+            "training_data": training_data['training_samples'],
+            "total_training_points": training_data['total_training_points']
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving training data: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve training data: {str(e)}"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 📊 ARIMA FORECAST PLOT ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get(
+    "/plots/arima/{model_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Get ARIMA Forecast Plot",
+    description="Generate and return a plot of ARIMA forecasts with confidence intervals"
+)
+def get_arima_plot(
+    model_id: int,
+    periods: int = 30,
+    historical_periods: int = 50,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    📊 Generate a forecast plot for an ARIMA model.
+    
+    Creates a plot showing historical data, predictions, and 95% confidence intervals.
+    The plot is returned as a base64-encoded PNG image.
+    
+    Args:
+        model_id: ID of the ARIMA model
+        periods: Number of periods to forecast (default: 30)
+        historical_periods: Number of historical periods to display (default: 50)
+        current_user: Authenticated user
+        db: Database session
+        
+    Returns:
+        PNG image as base64 with model parameters
+    """
+    try:
+        # Verify model exists and belongs to user
+        model = db.query(MLModel).filter(
+            MLModel.id == model_id,
+            MLModel.user_id == current_user.id
+        ).first()
+        
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Model not found"
+            )
+        
+        if model.model_type.lower() != "arima":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Model is not ARIMA type. Model type: {model.model_type}"
+            )
+        
+        if model.status.lower() != "entrenado":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Model is not trained. Status: {model.status}"
+            )
+        
+        logger.info(f"Generating forecast plot for ARIMA model {model_id}")
+        
+        # Import plot function
+        from app.ml.arima.predict import plot_arima_forecast
+        
+        # Generate plot
+        plot_result = plot_arima_forecast(
+            model_path=model.model_path,
+            future_periods=periods,
+            historical_periods=historical_periods
+        )
+        
+        if plot_result['status'] != 'éxito':
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate plot: {plot_result.get('error', 'Unknown error')}"
+            )
+        
+        logger.info(f"✅ Plot generated successfully for model {model_id}")
+        
+        return {
+            "model_id": model.id,
+            "model_name": model.name,
+            "model_type": "arima",
+            "image": plot_result['image'],
+            "parameters": plot_result['parameters'],
+            "created_at": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating ARIMA plot: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate plot: {str(e)}"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 📚 METRICS HELP & EDUCATION ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+# Diccionario centralizado de explicaciones de métricas
+METRICS_EXPLANATIONS = {
+    "rmse": {
+        "label": "RMSE (Root Mean Square Error)",
+        "description": "Error promedio del modelo en unidades originales",
+        "interpretation": "Cuanto más bajo, mejor. Penaliza errores grandes.",
+        "unit": "unidades originales",
+        "benchmark": "< 10% del promedio de tus datos = ✅ Excelente",
+        "examples": [
+            {"case": "Promedio=300, RMSE=25", "result": "8.3% → ✅ Excelente"},
+            {"case": "Promedio=300, RMSE=60", "result": "20% → ⚠️ Aceptable"},
+            {"case": "Promedio=300, RMSE=100", "result": "33% → ❌ Necesita mejora"}
+        ]
+    },
+    "mae": {
+        "label": "MAE (Mean Absolute Error)",
+        "description": "Error promedio en valor absoluto",
+        "interpretation": "En promedio, el modelo se equivoca ±X unidades. Más estable que RMSE.",
+        "unit": "unidades originales",
+        "benchmark": "Similar a RMSE: < 10% del promedio = ✅ Excelente",
+        "vs_rmse": "RMSE penaliza más errores grandes. MAE es más equilibrado."
+    },
+    "aic": {
+        "label": "AIC (Akaike Information Criterion)",
+        "description": "Métrica que balancea precisión vs complejidad del modelo",
+        "interpretation": "Solo comparar entre modelos ARIMA. Valor más bajo es mejor.",
+        "note": "Número absoluto no tiene significado. Solo importa la comparación.",
+        "when_to_use": "Comparar 2+ modelos ARIMA."
+    },
+    "bic": {
+        "label": "BIC (Bayesian Information Criterion)",
+        "description": "Similar a AIC pero penaliza más la complejidad",
+        "interpretation": "Valor más bajo es mejor. Favorece modelos simples.",
+        "when_to_use": "Comparar 2+ modelos ARIMA. Más conservador que AIC.",
+        "tip": "Si AIC y BIC coinciden en el mejor modelo → muy confiable ✅"
+    },
+    "order": {
+        "label": "ARIMA Order (p, d, q)",
+        "description": "Parámetros técnicos del modelo ARIMA",
+        "components": {
+            "p": "Términos autorregresivos (dependencia del pasado)",
+            "d": "Diferenciaciones (para hacer la serie estacionaria)",
+            "q": "Términos de media móvil (ruido pasado)"
+        },
+        "typical_range": "Valores entre 0-2 para cada parámetro son normales",
+        "note": "El modelo selecciona automáticamente estos valores."
+    },
+    "data_points": {
+        "label": "Puntos de Datos",
+        "description": "Número de registros usados para entrenar el modelo",
+        "interpretation": "Más datos = modelos más confiables",
+        "benchmarks": {
+            "excellent": "200+ puntos",
+            "good": "100-200 puntos",
+            "acceptable": "50-100 puntos",
+            "minimum": "30+ (ARIMA puede funcionar con pocos datos)"
+        }
+    }
+}
+
+
+@router.get(
+    "/metrics-help/{metric_name}",
+    status_code=status.HTTP_200_OK,
+    summary="Obtener explicación de una métrica",
+    tags=["Help & Education"]
+)
+def get_metrics_help(metric_name: str):
+    """
+    📚 Obtener explicación contextual sobre una métrica.
+    
+    El frontend usa este endpoint para mostrar tooltips y explicaciones al usuario.
+    
+    Ejemplos:
+    - GET /api/v1/metrics-help/rmse
+    - GET /api/v1/metrics-help/mae
+    - GET /api/v1/metrics-help/aic
+    
+    Args:
+        metric_name: Nombre de la métrica (rmse, mae, aic, bic, order, data_points)
+        
+    Returns:
+        Diccionario con explicación, interpretación, benchmarks y ejemplos
+    """
+    metric = metric_name.lower().strip()
+    
+    if metric not in METRICS_EXPLANATIONS:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Métrica '{metric_name}' no documentada. Disponibles: {', '.join(METRICS_EXPLANATIONS.keys())}"
+        )
+    
+    return METRICS_EXPLANATIONS[metric]

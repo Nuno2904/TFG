@@ -16,6 +16,7 @@ from app.schemas.ml import MLModelCreate, MLModelOut, MLModelUpdate, MLModelDeta
 from app.security import get_current_user
 from app.services.ml_storage_service import MLStorageService
 from app.ml.prophet.train import train_prophet_model, get_dataset_as_dataframe
+from app.ml.arima.train import train_arima_model, prepare_dataframe_for_arima
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +85,26 @@ def train_model_background(
                     logger.info(f"✅ Modelo {model_id} entrenado exitosamente")
             
             elif model_type == "arima":
-                # Future: Implementar ARIMA
-                logger.warning(f"⚠️ Modelo ARIMA aún no implementado")
-                raise NotImplementedError(f"Modelo {model_type} no está implementado aún")
+                logger.info(f"🤖 Entrenando modelo ARIMA...")
+                
+                # Convertir dataframe de Prophet (ds, y) a formato ARIMA (índice datetime)
+                df_arima = prepare_dataframe_for_arima(df, date_col='ds', value_col='y')
+                
+                # Entrenar ARIMA
+                resultado_entrenamiento = train_arima_model(df_arima, model_name, user_id, dataset_id, model_path)
+                
+                if resultado_entrenamiento['status'] == 'éxito':
+                    # Actualizar estado a "entrenado" en BD
+                    model = db.query(MLModel).filter(MLModel.id == model_id).first()
+                    if model:
+                        model.status = "entrenado"
+                        model.error_message = None
+                        db.commit()
+                        logger.info(f"✅ Modelo ARIMA {model_id} entrenado exitosamente")
+                        logger.info(f"   Parámetros: ARIMA{resultado_entrenamiento['metadata']['order']}")
+                else:
+                    # Error en entrenamiento
+                    raise Exception(resultado_entrenamiento.get('error', 'Error desconocido en ARIMA'))
             
             else:
                 raise ValueError(f"Tipo de modelo no soportado: {model_type}")
@@ -148,11 +166,23 @@ def create_ml_model(
         Dataset.user_id == current_user.id
     ).first()
     
+    print(f"DEBUG: Verificando dataset {model_data.dataset_id} para usuario {current_user.id}")
     if not dataset:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dataset not found or does not belong to the current user"
-        )
+        # Check if dataset exists but belongs to another user
+        other_dataset = db.query(Dataset).filter(
+            Dataset.id == model_data.dataset_id
+        ).first()
+        
+        if other_dataset:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Dataset {model_data.dataset_id} exists but belongs to another user. You cannot train models with datasets that don't belong to you."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset {model_data.dataset_id} not found"
+            )
     
     # ✅ Check if model with same name already exists for this user
     existing_model = db.query(MLModel).filter(
