@@ -112,6 +112,13 @@ def train_arima_model(
             logger.warning(f"⚠️ Interpolando {series.isnull().sum()} nulos...")
             series = series.interpolate(method='linear', limit_direction='both')
         
+        # 3b. Asegurar frecuencia en el índice para evitar warnings de statsmodels
+        if hasattr(series.index, 'inferred_freq') and series.index.freq is None:
+            inferred = pd.infer_freq(series.index)
+            if inferred:
+                series = series.asfreq(inferred)
+                logger.info(f"📅 Frecuencia establecida: {inferred}")
+        
         # 4. Encontrar parámetros óptimos con auto_arima
         logger.info("🔎 Buscando parámetros óptimos...")
         

@@ -4,6 +4,7 @@
 #tiene que poder predecir: intervalso de confianza, erores relativ, error absoluto, ha de ser capaz de ostrar varios tipos de gráficas. 
 from prophet.serialize import model_to_json, model_from_json
 from prophet.plot import plot_plotly, plot_components_plotly
+import pandas as pd
 import logging
 from pathlib import Path
 from sqlalchemy.orm import Session
@@ -106,3 +107,47 @@ def prophet_plot(model, forecast):
     except Exception as e:
         logger.error(f"❌ Error generando gráficos: {str(e)}")
         raise Exception(f"Error generando gráficos: {str(e)}")
+
+
+def get_training_samples(model_path: str, n_samples: int = 100) -> dict:
+    """
+    Obtiene valores de entrenamiento del modelo Prophet para visualización.
+    
+    Args:
+        model_path: Ruta del directorio del modelo
+        n_samples: Número de muestras a retornar
+    
+    Returns:
+        dict con datos de entrenamiento
+    """
+    try:
+        logger.info(f"📥 Cargando datos de entrenamiento Prophet desde: {model_path}")
+        
+        prophet_model = MLStorageService.load_prophet_model_from_directory(model_path)
+        
+        # Prophet almacena los datos de entrenamiento en model.history
+        history = prophet_model.history
+        
+        if history is None or history.empty:
+            raise ValueError("No training data found in Prophet model")
+        
+        # Tomar últimas n_samples
+        training_data = history.tail(n_samples)
+        
+        train_list = []
+        for _, row in training_data.iterrows():
+            train_list.append({
+                'date': row['ds'].strftime('%Y-%m-%d') if hasattr(row['ds'], 'strftime') else str(row['ds']),
+                'y': float(row['y'])
+            })
+        
+        logger.info(f"✅ {len(train_list)} muestras de entrenamiento Prophet cargadas")
+        
+        return {
+            'training_samples': train_list,
+            'total_training_points': len(history)
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error cargando datos de entrenamiento Prophet: {str(e)}")
+        raise

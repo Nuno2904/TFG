@@ -21,7 +21,8 @@ from app.models import MLModel, Usuario, Dataset
 from app.models.ml import ModelStatus
 from app.security import get_current_user
 from app.ml.prophet.predict import predict_prophet_model, prophet_plot
-from app.ml.arima.predict import predict_arima_model, get_training_samples
+from app.ml.prophet.predict import get_training_samples as get_prophet_training_samples
+from app.ml.arima.predict import predict_arima_model, get_training_samples as get_arima_training_samples
 from app.services.ml_storage_service import MLStorageService
 
 logger = logging.getLogger(__name__)
@@ -558,7 +559,7 @@ def get_arima_training_data(
         
         logger.info(f"Retrieving training data for model {model_id}")
         
-        training_data = get_training_samples(model.model_path, n_samples=samples)
+        training_data = get_arima_training_samples(model.model_path, n_samples=samples)
         
         return {
             "model_id": model.id,
@@ -676,100 +677,79 @@ def get_arima_plot(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 📚 METRICS HELP & EDUCATION ENDPOINT
+# 📈 UNIFIED TRAINING DATA ENDPOINT (ARIMA + PROPHET)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-# Diccionario centralizado de explicaciones de métricas
-METRICS_EXPLANATIONS = {
-    "rmse": {
-        "label": "RMSE (Root Mean Square Error)",
-        "description": "Error promedio del modelo en unidades originales",
-        "interpretation": "Cuanto más bajo, mejor. Penaliza errores grandes.",
-        "unit": "unidades originales",
-        "benchmark": "< 10% del promedio de tus datos = ✅ Excelente",
-        "examples": [
-            {"case": "Promedio=300, RMSE=25", "result": "8.3% → ✅ Excelente"},
-            {"case": "Promedio=300, RMSE=60", "result": "20% → ⚠️ Aceptable"},
-            {"case": "Promedio=300, RMSE=100", "result": "33% → ❌ Necesita mejora"}
-        ]
-    },
-    "mae": {
-        "label": "MAE (Mean Absolute Error)",
-        "description": "Error promedio en valor absoluto",
-        "interpretation": "En promedio, el modelo se equivoca ±X unidades. Más estable que RMSE.",
-        "unit": "unidades originales",
-        "benchmark": "Similar a RMSE: < 10% del promedio = ✅ Excelente",
-        "vs_rmse": "RMSE penaliza más errores grandes. MAE es más equilibrado."
-    },
-    "aic": {
-        "label": "AIC (Akaike Information Criterion)",
-        "description": "Métrica que balancea precisión vs complejidad del modelo",
-        "interpretation": "Solo comparar entre modelos ARIMA. Valor más bajo es mejor.",
-        "note": "Número absoluto no tiene significado. Solo importa la comparación.",
-        "when_to_use": "Comparar 2+ modelos ARIMA."
-    },
-    "bic": {
-        "label": "BIC (Bayesian Information Criterion)",
-        "description": "Similar a AIC pero penaliza más la complejidad",
-        "interpretation": "Valor más bajo es mejor. Favorece modelos simples.",
-        "when_to_use": "Comparar 2+ modelos ARIMA. Más conservador que AIC.",
-        "tip": "Si AIC y BIC coinciden en el mejor modelo → muy confiable ✅"
-    },
-    "order": {
-        "label": "ARIMA Order (p, d, q)",
-        "description": "Parámetros técnicos del modelo ARIMA",
-        "components": {
-            "p": "Términos autorregresivos (dependencia del pasado)",
-            "d": "Diferenciaciones (para hacer la serie estacionaria)",
-            "q": "Términos de media móvil (ruido pasado)"
-        },
-        "typical_range": "Valores entre 0-2 para cada parámetro son normales",
-        "note": "El modelo selecciona automáticamente estos valores."
-    },
-    "data_points": {
-        "label": "Puntos de Datos",
-        "description": "Número de registros usados para entrenar el modelo",
-        "interpretation": "Más datos = modelos más confiables",
-        "benchmarks": {
-            "excellent": "200+ puntos",
-            "good": "100-200 puntos",
-            "acceptable": "50-100 puntos",
-            "minimum": "30+ (ARIMA puede funcionar con pocos datos)"
-        }
-    }
-}
-
-
 @router.get(
-    "/metrics-help/{metric_name}",
+    "/models/{model_id}/training-data",
     status_code=status.HTTP_200_OK,
-    summary="Obtener explicación de una métrica",
-    tags=["Help & Education"]
+    summary="Get Model Training Data",
+    description="Get training data samples for any model type (ARIMA or Prophet)"
 )
-def get_metrics_help(metric_name: str):
+def get_model_training_data(
+    model_id: int,
+    samples: int = 100,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
     """
-    📚 Obtener explicación contextual sobre una métrica.
-    
-    El frontend usa este endpoint para mostrar tooltips y explicaciones al usuario.
-    
-    Ejemplos:
-    - GET /api/v1/metrics-help/rmse
-    - GET /api/v1/metrics-help/mae
-    - GET /api/v1/metrics-help/aic
+    📈 Get training data samples from any model (ARIMA or Prophet).
     
     Args:
-        metric_name: Nombre de la métrica (rmse, mae, aic, bic, order, data_points)
+        model_id: ID of the model
+        samples: Number of training samples to return (default: 100)
+        current_user: Authenticated user
+        db: Database session
         
     Returns:
-        Diccionario con explicación, interpretación, benchmarks y ejemplos
+        Historical training data points with dates and values
     """
-    metric = metric_name.lower().strip()
+    try:
+        model = db.query(MLModel).filter(
+            MLModel.id == model_id,
+            MLModel.user_id == current_user.id
+        ).first()
+        
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Model not found"
+            )
+        
+        if model.status != ModelStatus.TRAINED.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Model is not trained. Current status: {model.status}"
+            )
+        
+        logger.info(f"Retrieving training data for model {model_id} (type: {model.model_type})")
+        
+        model_type = model.model_type.lower()
+        
+        if model_type == "arima":
+            training_data = get_arima_training_samples(model.model_path, n_samples=samples)
+        elif model_type == "prophet":
+            training_data = get_prophet_training_samples(model.model_path, n_samples=samples)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported model type: {model.model_type}"
+            )
+        
+        return {
+            "model_id": model.id,
+            "model_name": model.name,
+            "model_type": model_type,
+            "training_data": training_data['training_samples'],
+            "total_training_points": training_data['total_training_points']
+        }
     
-    if metric not in METRICS_EXPLANATIONS:
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving training data: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Métrica '{metric_name}' no documentada. Disponibles: {', '.join(METRICS_EXPLANATIONS.keys())}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve training data: {str(e)}"
         )
-    
-    return METRICS_EXPLANATIONS[metric]

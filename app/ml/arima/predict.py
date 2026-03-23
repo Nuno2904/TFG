@@ -8,6 +8,7 @@ import joblib
 import pandas as pd
 import numpy as np
 import logging
+import warnings
 from pathlib import Path
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -74,25 +75,44 @@ def predict_arima_model(
         # Realizar predicciones
         logger.info(f"📅 Generando predicciones para {future_periods} períodos...")
         
-        forecast_result = arima_model.get_forecast(steps=future_periods)
-        forecast_values = forecast_result.predicted_mean
-        conf_int = forecast_result.conf_int(alpha=0.05)  # 95% confidence
+        # pmdarima predict: retorna forecast + intervalos de confianza
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=FutureWarning)
+            warnings.simplefilter("ignore", category=UserWarning)
+            forecast_values, conf_int = arima_model.predict(
+                n_periods=future_periods,
+                return_conf_int=True,
+                alpha=0.05
+            )
+        # Asegurar arrays numpy para indexación posicional
+        forecast_values = np.asarray(forecast_values)
+        conf_int = np.asarray(conf_int)
         
         logger.info("✅ Predicciones generadas exitosamente")
         
         # Preparar respuesta con fechas
         forecast_list = []
         
-        # forecast_values ya tiene índices de fechas
-        for i, (pred_date, value) in enumerate(forecast_values.items()):
-            conf_lower = conf_int.iloc[i, 0] if conf_int is not None else None
-            conf_upper = conf_int.iloc[i, 1] if conf_int is not None else None
+        # Generar índice de fechas a partir de los datos de entrenamiento
+        try:
+            last_date = arima_model.arima_res_.data.dates[-1]
+            date_index = pd.date_range(
+                start=last_date + pd.tseries.frequencies.to_offset(pd.infer_freq(arima_model.arima_res_.data.dates)),
+                periods=future_periods
+            )
+        except Exception:
+            # Fallback: índices numéricos
+            date_index = range(future_periods)
+        
+        for i, pred_date in enumerate(date_index):
+            conf_lower = float(conf_int[i, 0]) if conf_int is not None else None
+            conf_upper = float(conf_int[i, 1]) if conf_int is not None else None
             
             forecast_list.append({
                 'date': pred_date.strftime('%Y-%m-%d') if hasattr(pred_date, 'strftime') else str(pred_date),
-                'yhat': float(value),
-                'yhat_lower': float(conf_lower) if conf_lower is not None else None,
-                'yhat_upper': float(conf_upper) if conf_upper is not None else None
+                'yhat': float(forecast_values[i]),
+                'yhat_lower': conf_lower,
+                'yhat_upper': conf_upper
             })
         
         return {
@@ -129,24 +149,17 @@ def get_training_samples(model_path: str, n_samples: int = 100) -> dict:
         
         arima_model = MLStorageService.load_arima_model_from_directory(model_path)
         
-        # Obtener datos de entrenamiento
-        # Intentar acceder al índice del modelo de diferentes formas
+        # Obtener datos de entrenamiento desde pmdarima
         try:
-            # Intentar acceder a través del modelo.data.index
-            if hasattr(arima_model.model, 'data') and hasattr(arima_model.model.data, 'index'):
-                index = arima_model.model.data.index
-            else:
-                # Si no funciona, usar el índice del fitted values
-                index = arima_model.fittedvalues.index
-        except:
-            # Si todo falla, generar índices numéricos
-            endog_len = len(arima_model.model.endog)
-            index = pd.RangeIndex(endog_len)
-        
-        # Obtener los valores
-        endog_values = arima_model.model.endog
-        if isinstance(endog_values, np.ndarray):
-            endog_values = pd.Series(endog_values, index=index)
+            endog = arima_model.arima_res_.data.endog.flatten()
+            try:
+                index = arima_model.arima_res_.data.dates
+            except Exception:
+                index = pd.RangeIndex(len(endog))
+            endog_values = pd.Series(endog, index=index)
+        except Exception:
+            # Fallback
+            endog_values = pd.Series(arima_model.arima_res_.data.endog.flatten())
         
         # Tomar últimas n_samples
         training_data = endog_values.iloc[-n_samples:] if len(endog_values) > n_samples else endog_values
@@ -200,13 +213,30 @@ def plot_arima_forecast(
         if arima_model is None or metadata is None:
             raise ValueError("No se pudo cargar el modelo o metadatos")
         
-        # Generar predicciones
-        forecast_result = arima_model.get_forecast(steps=future_periods)
-        forecast_mean = forecast_result.predicted_mean
-        conf_int = forecast_result.conf_int(alpha=0.05)
+        # Generar predicciones con pmdarima
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=FutureWarning)
+            warnings.simplefilter("ignore", category=UserWarning)
+            forecast_mean, conf_int = arima_model.predict(
+                n_periods=future_periods,
+                return_conf_int=True,
+                alpha=0.05
+            )
+        forecast_mean = np.asarray(forecast_mean)
+        conf_int = np.asarray(conf_int)
         
         # Obtener histórico - últimas N observaciones
-        historical_data = arima_model.data
+        # pmdarima guarda los datos en arima_res_.data.endog
+        try:
+            endog = arima_model.arima_res_.data.endog
+            try:
+                hist_index = arima_model.arima_res_.data.dates
+            except Exception:
+                hist_index = range(len(endog))
+            historical_data = pd.Series(endog.flatten(), index=hist_index)
+        except Exception:
+            historical_data = pd.Series(range(10))
+        
         if len(historical_data) > historical_periods:
             historical_data = historical_data[-historical_periods:]
         
@@ -222,10 +252,21 @@ def plot_arima_forecast(
             linewidth=2
         )
         
+        # Generar índice de fechas para las predicciones
+        try:
+            last_hist_idx = historical_data.index[-1]
+            freq = pd.infer_freq(historical_data.index)
+            forecast_index = pd.date_range(
+                start=last_hist_idx + pd.tseries.frequencies.to_offset(freq),
+                periods=future_periods
+            )
+        except Exception:
+            forecast_index = range(len(historical_data), len(historical_data) + future_periods)
+        
         # Plotear pronóstico
         ax.plot(
-            forecast_mean.index,
-            forecast_mean.values,
+            forecast_index,
+            forecast_mean,
             'darkred',
             label='Pronóstico',
             linewidth=2,
@@ -235,9 +276,9 @@ def plot_arima_forecast(
         
         # Intervalos de confianza (95%)
         ax.fill_between(
-            conf_int.index,
-            conf_int.iloc[:, 0],
-            conf_int.iloc[:, 1],
+            forecast_index,
+            conf_int[:, 0],
+            conf_int[:, 1],
             color='red',
             alpha=0.2,
             label='95% Intervalo de confianza'
