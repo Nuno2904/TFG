@@ -39,7 +39,16 @@ class Usuario(Base):
         doc="Unique user identifier"
     )
     
-    # 📧 Email
+    # � Username
+    username: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        unique=True,
+        index=True,
+        doc="Unique username"
+    )
+
+    # �📧 Email
     email: Mapped[str] = mapped_column(
         String,
         nullable=False,

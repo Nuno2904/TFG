@@ -58,7 +58,10 @@ def validate_file_size(file_content: bytes, max_size_mb: int = 5) -> bool:
 
 def find_date_column(df: pd.DataFrame) -> Optional[str]:
     """
-    Busca automáticamente la columna que contiene fechas.
+    Busca automáticamente la columna que contiene fechas con detección inteligente de formato.
+    
+    Intenta detectar automáticamente si el formato es DD-MM-YYYY, MM-DD-YYYY, etc.
+    mediante análisis heurístico de los valores.
     
     Args:
         df: DataFrame a analizar
@@ -67,14 +70,30 @@ def find_date_column(df: pd.DataFrame) -> Optional[str]:
         Nombre de la columna con fechas, None si no encuentra
     """
     for column in df.columns:
-        parsed = pd.to_datetime(
+        # Estrategia 1: Intentar con dayfirst=True (para DD-MM-YYYY)
+        parsed_dayfirst = pd.to_datetime(
             df[column],
             errors="coerce",
             dayfirst=True
         )
-
-        if parsed.notna().sum() / len(df) >= 0.5:
+        
+        # Estrategia 2: Intentar con dayfirst=False (para MM-DD-YYYY)
+        parsed_monthfirst = pd.to_datetime(
+            df[column],
+            errors="coerce",
+            dayfirst=False
+        )
+        
+        # Usar la estrategia que tenga más conversiones exitosas
+        valid_dayfirst = parsed_dayfirst.notna().sum()
+        valid_monthfirst = parsed_monthfirst.notna().sum()
+        
+        # Elegir la mejor opción
+        if valid_dayfirst >= valid_monthfirst and valid_dayfirst / len(df) >= 0.5:
             return column
+        elif valid_monthfirst / len(df) >= 0.5:
+            return column
+    
     return None
 
 
@@ -107,20 +126,43 @@ def find_numeric_column(df: pd.DataFrame, exclude_columns: List[str] = None) -> 
 
 def validate_columns(df: pd.DataFrame) -> Tuple[Optional[str], Optional[str]]:
     """
-    Valida que el archivo tenga columnas de fecha y numérica.
+    Valida que el archivo tenga exactamente 2 columnas: fecha y numérica.
+    Detecta automáticamente el formato de fecha (DD-MM-YYYY o MM-DD-YYYY) y lo convierte a YYYY-MM-DD.
     
     Args:
         df: DataFrame a validar
         
     Returns:
         Tupla (nombre_columna_fecha, nombre_columna_numerica)
+        
+    Raises:
+        HTTPException: Si el número de columnas no es exactamente 2
     """
+    # Validar que haya exactamente 2 columnas
+    if len(df.columns) != 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El archivo debe tener exactamente 2 columnas (fecha y valor). Se encontraron {len(df.columns)} columnas."
+        )
+    
     date_col = find_date_column(df)
     
-    #asegúrate de que pasamos la fecha en formato YY-MM-DD independientemente del formato original
     if date_col:
         try:
-            df[date_col] = pd.to_datetime(df[date_col], errors='coerce', dayfirst=True).dt.strftime('%Y-%m-%d')
+            # Intentar con dayfirst=True (DD-MM-YYYY)
+            parsed_dayfirst = pd.to_datetime(df[date_col], errors='coerce', dayfirst=True)
+            # Intentar con dayfirst=False (MM-DD-YYYY)
+            parsed_monthfirst = pd.to_datetime(df[date_col], errors='coerce', dayfirst=False)
+            
+            # Elegir la estrategia con más conversiones exitosas
+            valid_dayfirst = parsed_dayfirst.notna().sum()
+            valid_monthfirst = parsed_monthfirst.notna().sum()
+            
+            if valid_dayfirst >= valid_monthfirst:
+                df[date_col] = parsed_dayfirst.dt.strftime('%Y-%m-%d')
+            else:
+                df[date_col] = parsed_monthfirst.dt.strftime('%Y-%m-%d')
+                
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -130,6 +172,30 @@ def validate_columns(df: pd.DataFrame) -> Tuple[Optional[str], Optional[str]]:
     numeric_col = find_numeric_column(df, exclude_columns=[date_col] if date_col else [])
     
     return date_col, numeric_col
+
+
+def validate_no_duplicate_dates(df: pd.DataFrame, date_col: str) -> None:
+    """
+    Valida que no haya fechas duplicadas en la columna de fecha.
+    Una serie temporal requiere variación temporal (fechas diferentes).
+    
+    Args:
+        df: DataFrame a validar
+        date_col: Nombre de la columna de fecha
+        
+    Raises:
+        HTTPException: Si hay 2 o más fechas iguales
+    """
+    # Contar fechas duplicadas (excluyendo NaN)
+    valid_dates = df[date_col].dropna()
+    duplicate_dates = valid_dates[valid_dates.duplicated(keep=False)]
+    
+    if len(duplicate_dates) > 0:
+        unique_duplicates = duplicate_dates.unique()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El archivo contiene fechas duplicadas: {', '.join(unique_duplicates[:5])}. La serie temporal requiere fechas únicas."
+        )
 
 
 
@@ -218,6 +284,9 @@ class FileService:
                 detail="El archivo debe contener una columna con valores numéricos"
             )
         
+        # Validar que no haya fechas duplicadas
+        validate_no_duplicate_dates(df, date_col)
+        
         #comprobar que el usuario no ha subido ningún archivo con el mismo nombre
         existing_file = db.scalars(
             select(Dataset).where((Dataset.user_id == user_id) & (Dataset.name == file.filename)) ).first()
@@ -249,17 +318,16 @@ class FileService:
         
         for idx, row in df.iterrows():
             try:
-                # Transformar fecha a formato YYYY-MM-DD
-                
-               # ds_value = transform_date_to_ds_format(str(date_value))
-                
-                #if ds_value is None:
-                #    errors.append(f"Fila {idx + 1}: Fecha inválida")
-                #    continue
-                
                 # Obtener valor numérico
                 numeric_value = pd.to_numeric(row[numeric_col], errors='coerce')
                 date_value = row[date_col]
+                
+                # Validar que la fecha no sea NaN
+                if pd.isna(date_value):
+                    errors.append(f"Fila {idx + 1}: Fecha faltante o inválida")
+                    continue
+                
+                # Validar que el valor numérico no sea NaN
                 if pd.isna(numeric_value):
                     errors.append(f"Fila {idx + 1}: Valor numérico inválido")
                     continue

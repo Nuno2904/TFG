@@ -11,11 +11,12 @@ from sqlalchemy import select
 
 from app.db.session import get_db
 from app.models import Usuario
-from app.schemas import UsuarioRegister, UsuarioOut, UsuarioUpdate
+from app.schemas import UsuarioRegister, UsuarioOut, UsuarioUpdate, ChangePasswordRequest
 from app.security import (
     hash_password,
     get_current_user,
     get_admin_user,
+    verify_password,
 )
 
 
@@ -203,7 +204,58 @@ def update_me(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 🗑️ User Deletion
+# � Password Management
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.post(
+    "/me/change-password",
+    status_code=status.HTTP_200_OK,
+    summary="Change Password",
+    description="Change authenticated user's password"
+)
+def change_password(
+    password_data: ChangePasswordRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    🔑 Change current user's password.
+    
+    Requires verification of current password for security.
+    
+    Args:
+        password_data: Current and new password
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Success message
+        
+    Raises:
+        HTTPException 400: Current password is incorrect
+    """
+    # ✅ Verify current password
+    if not verify_password(password_data.current_password, current_user.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contraseña actual incorrecta"
+        )
+    
+    # 🔐 Hash new password
+    current_user.password = hash_password(password_data.new_password)
+    
+    # 💾 Save changes
+    db.commit()
+    
+    return {
+        "message": "Contraseña actualizada exitosamente",
+        "email": current_user.email
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# �🗑️ User Deletion
 # ═══════════════════════════════════════════════════════════════════════════
 
 

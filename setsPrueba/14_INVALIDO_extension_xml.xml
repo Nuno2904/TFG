@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+  <row>
+    <date>2023-01-01</date>
+    <value>100.5</value>
+  </row>
+  <row>
+    <date>2023-01-02</date>
+    <value>102.3</value>
+  </row>
+  <row>
+    <date>2023-01-03</date>
+    <value>101.8</value>
+  </row>
+  <row>
+    <date>2023-01-04</date>
+    <value>103.2</value>
+  </row>
+</dataset>

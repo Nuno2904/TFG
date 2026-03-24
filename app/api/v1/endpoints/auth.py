@@ -83,7 +83,6 @@ def register(
         username=user_data.username,
         email=user_data.email,
         password=hashed_password,
-        full_name=user_data.full_name,
         tipo="usuario"
     )
     

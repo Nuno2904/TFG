@@ -26,10 +26,17 @@ class UsuarioRegister(UsuarioBase):
     
     Required fields:
         - email: User email
+        - username: Unique username
         - password: Plain text password (will be hashed)
         - tipo: Optional user type (defaults to 'usuario')
     """
     
+    username: str = Field(
+        ...,
+        min_length=3,
+        max_length=100,
+        description="Unique username (3-100 characters)"
+    )
     password: str = Field(
         ...,
         min_length=8,
@@ -50,6 +57,25 @@ class UsuarioUpdate(BaseModel):
     )
     password: Optional[str] = Field(
         None,
+        min_length=8,
+        description="New password (minimum 8 characters)"
+    )
+
+
+class ChangePasswordRequest(BaseModel):
+    """
+    Schema for changing user password.
+    
+    Requires verification of current password for security.
+    """
+    
+    current_password: str = Field(
+        ...,
+        min_length=8,
+        description="Current password for verification"
+    )
+    new_password: str = Field(
+        ...,
         min_length=8,
         description="New password (minimum 8 characters)"
     )

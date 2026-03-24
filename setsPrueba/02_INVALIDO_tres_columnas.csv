@@ -1,0 +1,11 @@
+date,value,extra_column
+2023-01-01,100.5,metadata1
+2023-01-02,102.3,metadata2
+2023-01-03,101.8,metadata3
+2023-01-04,103.2,metadata4
+2023-01-05,105.1,metadata5
+2023-01-06,104.9,metadata6
+2023-01-07,106.2,metadata7
+2023-01-08,105.8,metadata8
+2023-01-09,107.3,metadata9
+2023-01-10,108.5,metadata10

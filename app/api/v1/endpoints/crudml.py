@@ -94,14 +94,25 @@ def train_model_background(
                 resultado_entrenamiento = train_arima_model(df_arima, model_name, user_id, dataset_id, model_path)
                 
                 if resultado_entrenamiento['status'] == 'éxito':
-                    # Actualizar estado a "entrenado" en BD
+                    # Actualizar estado y tipo de modelo en BD
                     model = db.query(MLModel).filter(MLModel.id == model_id).first()
                     if model:
+                        # Obtener el tipo real de modelo del resultado (ARIMA o SARIMA)
+                        actual_model_type = resultado_entrenamiento['metadata'].get('model_type', 'arima').lower()
+                        model.model_type = actual_model_type
                         model.status = "entrenado"
                         model.error_message = None
                         db.commit()
-                        logger.info(f"✅ Modelo ARIMA {model_id} entrenado exitosamente")
-                        logger.info(f"   Parámetros: ARIMA{resultado_entrenamiento['metadata']['order']}")
+                        
+                        # Log con tipo y parámetros correctos
+                        model_type_display = actual_model_type.upper()
+                        if actual_model_type == "sarima":
+                            seasonal_order = resultado_entrenamiento['metadata'].get('seasonal_order', '')
+                            logger.info(f"✅ Modelo {model_type_display} {model_id} entrenado exitosamente")
+                            logger.info(f"   Parámetros: {model_type_display}{resultado_entrenamiento['metadata']['order']}{seasonal_order if seasonal_order else ''}")
+                        else:
+                            logger.info(f"✅ Modelo {model_type_display} {model_id} entrenado exitosamente")
+                            logger.info(f"   Parámetros: {model_type_display}{resultado_entrenamiento['metadata']['order']}")
                 else:
                     # Error en entrenamiento
                     raise Exception(resultado_entrenamiento.get('error', 'Error desconocido en ARIMA'))

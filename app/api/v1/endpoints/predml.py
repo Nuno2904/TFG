@@ -158,10 +158,9 @@ def get_trained_model(
 
 @router.post(
     "/predict",
-    response_model=PredictionResponse,
     status_code=status.HTTP_200_OK,
-    summary="Make Prophet Prediction",
-    description="Make predictions using a trained Prophet ML model"
+    summary="Make Prediction (Prophet or ARIMA/SARIMA)",
+    description="Make predictions using a trained Prophet or ARIMA/SARIMA model"
 )
 def predict(
     request: PredictionRequest,
@@ -169,10 +168,9 @@ def predict(
     db: Session = Depends(get_db)
 ) -> dict:
     """
-    🔮 Make predictions with a trained Prophet model.
+    🔮 Make predictions with a trained model (Prophet or ARIMA/SARIMA).
     
-    Uses the specified Prophet model to generate forecasts for the requested
-    number of periods. The model must be in "entrenado" (trained) status.
+    Automatically detects model type and routes to appropriate prediction function.
     
     Args:
         request: Prediction request with model_id and periods
@@ -199,24 +197,53 @@ def predict(
         
         logger.info(f"Making prediction with model {model.id} for {request.periods} periods")
         
-        # Call Prophet prediction service using centralized model loading
-        forecast_data = predict_prophet_model(
-            model_path=model.model_path,
-            future_periods=request.periods
-        )
+        # Route to appropriate prediction function based on model type
+        if model.model_type.lower() == "prophet":
+            logger.info(f"🔮 Making Prophet prediction...")
+            
+            # Call Prophet prediction service
+            forecast_data = predict_prophet_model(
+                model_path=model.model_path,
+                future_periods=request.periods
+            )
+            
+            # Filter to only future predictions (last 'periods' rows)
+            future_forecast = forecast_data[-request.periods:] if len(forecast_data) > request.periods else forecast_data
+            
+            return {
+                "model_id": model.id,
+                "model_name": model.name,
+                "model_path": model.model_path,
+                "dataset_id": model.dataset_id,
+                "periods": request.periods,
+                "forecast": future_forecast,
+                "created_at": datetime.now().isoformat()
+            }
         
-        # Filter to only future predictions (last 'periods' rows)
-        future_forecast = forecast_data[-request.periods:] if len(forecast_data) > request.periods else forecast_data
+        elif model.model_type.lower() in ["arima", "sarima"]:
+            logger.info(f"📊 Making ARIMA/SARIMA prediction...")
+            
+            # Call ARIMA prediction service
+            prediction_result = predict_arima_model(
+                model_path=model.model_path,
+                future_periods=request.periods
+            )
+            
+            return {
+                "model_id": model.id,
+                "model_name": model.name,
+                "model_type": model.model_type,
+                "dataset_id": model.dataset_id,
+                "periods": request.periods,
+                "forecast": prediction_result['forecast'],
+                "created_at": datetime.now().isoformat()
+            }
         
-        return {
-            "model_id": model.id,
-            "model_name": model.name,
-            "model_path": model.model_path,
-            "dataset_id": model.dataset_id,
-            "periods": request.periods,
-            "forecast": future_forecast,
-            "created_at": datetime.now().isoformat()
-        }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported model type: {model.model_type}"
+            )
     
     except HTTPException:
         raise
@@ -237,7 +264,7 @@ def predict(
     "/models/{model_id}/info",
     status_code=status.HTTP_200_OK,
     summary="Get Model Information",
-    description="Get details about a specific Prophet model"
+    description="Get details about a specific model (Prophet or ARIMA)"
 )
 def get_model_info(
     model_id: int,
@@ -245,7 +272,7 @@ def get_model_info(
     db: Session = Depends(get_db)
 ) -> dict:
     """
-    📊 Get information about a Prophet model.
+    📊 Get information about a model (Prophet or ARIMA).
     
     Args:
         model_id: ID of the model
@@ -253,28 +280,62 @@ def get_model_info(
         db: Database session
         
     Returns:
-        Model details including status, path, and dataset
+        Model details including status, path, dataset, and training metrics (if ARIMA)
     """
-    model = db.query(MLModel).filter(
-        MLModel.id == model_id,
-        MLModel.user_id == current_user.id
-    ).first()
+    try:
+        model = db.query(MLModel).filter(
+            MLModel.id == model_id,
+            MLModel.user_id == current_user.id
+        ).first()
+        
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Model not found"
+            )
+        
+        # Get status - it's stored as a string in the database
+        model_status = model.status if isinstance(model.status, str) else model.status.value
+        
+        # Build response
+        response = {
+            "id": model.id,
+            "name": model.name,
+            "model_type": model.model_type,
+            "path": model.model_path,
+            "status": model_status,
+            "dataset_id": model.dataset_id,
+            "created_at": model.created_at.isoformat() if model.created_at else None,
+            "error_message": model.error_message
+        }
+        
+        # Add training metrics for ARIMA/SARIMA models
+        if model.model_type.lower() in ["arima", "sarima"] and model_status == "entrenado":
+            try:
+                metadata = MLStorageService.load_arima_metadata(model.model_path)
+                response["training_metrics"] = {
+                    "order": metadata.get('order'),
+                    "seasonal_order": metadata.get('seasonal_order'),
+                    "aic": metadata.get('aic'),
+                    "bic": metadata.get('bic'),
+                    "rmse": metadata.get('rmse'),
+                    "mae": metadata.get('mae'),
+                    "data_points": metadata.get('longitud', metadata.get('length'))
+                }
+            except Exception as e:
+                logger.warning(f"Could not load ARIMA metadata for model {model_id}: {str(e)}")
+                response["training_metrics"] = None
+        
+        return response
     
-    if not model:
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting model info: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Model not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving model info: {str(e)}"
         )
-    
-    return {
-        "id": model.id,
-        "name": model.name,
-        "path": model.model_path,
-        "status": model.status.value,
-        "dataset_id": model.dataset_id,
-        "created_at": model.created_at.isoformat() if model.created_at else None,
-        "error_message": model.error_message
-    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -394,16 +455,16 @@ def predict_arima(
         # Get and validate model
         model = get_trained_model(request.model_id, current_user.id, db)
         
-        # Verify it's an ARIMA model
-        if model.model_type.lower() != "arima":
+        # Verify it's an ARIMA or SARIMA model
+        if model.model_type.lower() not in ["arima", "sarima"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Model is not ARIMA type. Model type: {model.model_type}"
+                detail=f"Model is not ARIMA/SARIMA type. Model type: {model.model_type}"
             )
         
-        logger.info(f"Making ARIMA prediction with model {model.id} for {request.periods} periods")
+        logger.info(f"Making ARIMA/SARIMA prediction with model {model.id} ({model.model_type}) for {request.periods} periods")
         
-        # Call ARIMA prediction service
+        # Call ARIMA prediction service (works for both ARIMA and SARIMA)
         prediction_result = predict_arima_model(
             model_path=model.model_path,
             future_periods=request.periods
@@ -412,7 +473,7 @@ def predict_arima(
         return {
             "model_id": model.id,
             "model_name": model.name,
-            "model_type": "arima",
+            "model_type": model.model_type,
             "dataset_id": model.dataset_id,
             "periods": request.periods,
             "forecast": prediction_result['forecast'],
@@ -470,21 +531,28 @@ def get_arima_model_info(
                 detail="Model not found"
             )
         
-        if model.model_type.lower() != "arima":
+        if model.model_type.lower() not in ["arima", "sarima"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Model is not ARIMA type. Model type: {model.model_type}"
+                detail=f"Model is not ARIMA/SARIMA type. Model type: {model.model_type}"
             )
         
+        # Get status - it's stored as a string in the database
+        model_status = model.status if isinstance(model.status, str) else model.status.value
+        
         # Load metadata
-        metadata = MLStorageService.load_arima_metadata(model.model_path)
+        try:
+            metadata = MLStorageService.load_arima_metadata(model.model_path)
+        except Exception as e:
+            logger.warning(f"Could not load metadata for model {model_id}: {str(e)}")
+            metadata = {}
         
         return {
             "id": model.id,
             "name": model.name,
-            "model_type": "arima",
+            "model_type": model.model_type,
             "path": model.model_path,
-            "status": model.status,
+            "status": model_status,
             "dataset_id": model.dataset_id,
             "created_at": model.created_at.isoformat() if model.created_at else None,
             "error_message": model.error_message,
@@ -551,13 +619,13 @@ def get_arima_training_data(
                 detail="Model not found"
             )
         
-        if model.model_type.lower() != "arima":
+        if model.model_type.lower() not in ["arima", "sarima"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Model is not ARIMA type. Model type: {model.model_type}"
+                detail=f"Model is not ARIMA/SARIMA type. Model type: {model.model_type}"
             )
         
-        logger.info(f"Retrieving training data for model {model_id}")
+        logger.info(f"Retrieving training data for model {model_id} ({model.model_type})")
         
         training_data = get_arima_training_samples(model.model_path, n_samples=samples)
         
@@ -625,10 +693,10 @@ def get_arima_plot(
                 detail="Model not found"
             )
         
-        if model.model_type.lower() != "arima":
+        if model.model_type.lower() not in ["arima", "sarima"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Model is not ARIMA type. Model type: {model.model_type}"
+                detail=f"Model is not ARIMA/SARIMA type. Model type: {model.model_type}"
             )
         
         if model.status.lower() != "entrenado":
@@ -637,7 +705,7 @@ def get_arima_plot(
                 detail=f"Model is not trained. Status: {model.status}"
             )
         
-        logger.info(f"Generating forecast plot for ARIMA model {model_id}")
+        logger.info(f"Generating forecast plot for ARIMA/SARIMA model {model_id}")
         
         # Import plot function
         from app.ml.arima.predict import plot_arima_forecast
@@ -660,7 +728,7 @@ def get_arima_plot(
         return {
             "model_id": model.id,
             "model_name": model.name,
-            "model_type": "arima",
+            "model_type": model.model_type,
             "image": plot_result['image'],
             "parameters": plot_result['parameters'],
             "created_at": datetime.now().isoformat()
@@ -727,7 +795,7 @@ def get_model_training_data(
         
         model_type = model.model_type.lower()
         
-        if model_type == "arima":
+        if model_type in ["arima", "sarima"]:
             training_data = get_arima_training_samples(model.model_path, n_samples=samples)
         elif model_type == "prophet":
             training_data = get_prophet_training_samples(model.model_path, n_samples=samples)

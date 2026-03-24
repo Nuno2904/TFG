@@ -1,0 +1,9 @@
+This is a Word document trying to disguise itself as data.
+It contains text but is not a proper data file.
+
+date,value
+2023-01-01,100.5
+2023-01-02,102.3
+2023-01-03,101.8
+
+But the format is wrong and it's a .doc file.
