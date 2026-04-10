@@ -5,7 +5,8 @@ Pydantic models for request/response validation.
 Defines data structures for API endpoints.
 """
 
-from pydantic import BaseModel, EmailStr, Field
+import re
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime
 from typing import Optional, Literal
 
@@ -39,9 +40,27 @@ class UsuarioRegister(UsuarioBase):
     )
     password: str = Field(
         ...,
-        min_length=8,
-        description="Password (minimum 8 characters)"
+        min_length=10,
+        description="Password (minimum 10 characters, requires uppercase, lowercase, digit and special character)"
     )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        errors = []
+        if len(v) < 10:
+            errors.append("al menos 10 caracteres")
+        if not re.search(r"[A-Z]", v):
+            errors.append("al menos una letra mayúscula")
+        if not re.search(r"[a-z]", v):
+            errors.append("al menos una letra minúscula")
+        if not re.search(r"\d", v):
+            errors.append("al menos un dígito")
+        if not re.search(r"[!@#$%^&*()\-_=+\[\]{};:',.<>?/\\|`~\"£€]", v):
+            errors.append("al menos un carácter especial (!@#$%^&*...)")
+        if errors:
+            raise ValueError("La contraseña debe tener: " + ", ".join(errors))
+        return v
 
 
 class UsuarioUpdate(BaseModel):

@@ -6,7 +6,9 @@ Handles file upload, retrieval, and deletion with user authentication.
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 from typing import List
+from pydantic import BaseModel, Field
 
 from app.services.file_service import FileService
 from app.db.session import get_db
@@ -152,3 +154,44 @@ def delete_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al eliminar el archivo: {str(e)}"
         )
+
+
+class DatasetRenameRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200, description="New dataset name")
+
+
+@router.patch("/{file_id}/rename", status_code=status.HTTP_200_OK)
+def rename_dataset(
+    file_id: int,
+    body: DatasetRenameRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Renombra un dataset. Solo el propietario puede hacerlo.
+    """
+    dataset = db.scalars(
+        select(Dataset).where(Dataset.id == file_id, Dataset.user_id == current_user.id)
+    ).first()
+
+    if not dataset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset no encontrado")
+
+    # Check for name collision
+    existing = db.scalars(
+        select(Dataset).where(
+            Dataset.user_id == current_user.id,
+            Dataset.name == body.name,
+            Dataset.id != file_id
+        )
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya tienes un dataset con ese nombre"
+        )
+
+    dataset.name = body.name
+    db.commit()
+    db.refresh(dataset)
+    return {"id": dataset.id, "name": dataset.name}
