@@ -273,3 +273,37 @@ class MLStorageService:
         except Exception as e:
             logger.error(f"❌ Error loading metadata: {str(e)}")
             raise
+    
+    @staticmethod
+    def load_prophet_metadata(model_dir_path: str) -> dict:
+        """
+        Load Prophet model metadata from JSON file.
+        
+        Args:
+            model_dir_path (str): Path to the model directory
+            
+        Returns:
+            dict: Metadata dictionary with model info (mae, rmse, mape, longitud)
+            
+        Raises:
+            FileNotFoundError: If no metadata file found
+        """
+        import json
+        
+        model_dir = Path(model_dir_path)
+        metadata_files = list(model_dir.glob("*_metadata.json"))
+        
+        if not metadata_files:
+            raise FileNotFoundError(f"No metadata file found in directory: {model_dir}")
+        
+        metadata_file = metadata_files[0]
+        logger.info(f"📁 Loading Prophet metadata from: {metadata_file}")
+        
+        try:
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+            logger.info(f"✅ Prophet metadata loaded successfully")
+            return metadata
+        except Exception as e:
+            logger.error(f"❌ Error loading Prophet metadata: {str(e)}")
+            raise

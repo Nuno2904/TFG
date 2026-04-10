@@ -1,5 +1,7 @@
 #.py para entrenar al modelo Prophet
-import pandas as pd 
+import pandas as pd
+import numpy as np
+import json
 from prophet import Prophet
 from prophet.serialize import model_to_json, model_from_json
 import logging
@@ -77,6 +79,37 @@ def train_prophet_model(
         except Exception as e:
             logger.error(f"❌ Error guardando modelo: {str(e)}")
             raise
+        
+        # Calcular métricas sobre los datos de entrenamiento
+        logger.info("📊 Calculando métricas de entrenamiento...")
+        train_forecast = model.predict(df)
+        y_true = df['y'].values
+        y_pred = train_forecast['yhat'].values
+
+        mae = float(np.mean(np.abs(y_true - y_pred)))
+        rmse = float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
+        nonzero_mask = y_true != 0
+        if nonzero_mask.sum() > 0:
+            mape = float(np.mean(np.abs((y_true[nonzero_mask] - y_pred[nonzero_mask]) / y_true[nonzero_mask])) * 100)
+        else:
+            mape = None
+
+        logger.info(f"   MAE:  {mae:.4f}")
+        logger.info(f"   RMSE: {rmse:.4f}")
+        logger.info(f"   MAPE: {mape:.4f}%" if mape is not None else "   MAPE: N/A (valores cero en la serie)")
+
+        # Guardar metadatos
+        metadata = {
+            'model_type': 'prophet',
+            'longitud': len(df),
+            'mae': mae,
+            'rmse': rmse,
+            'mape': mape
+        }
+        metadata_file = model_dir / f"{model_name}_metadata.json"
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        logger.info(f"📝 Metadatos guardados en: {metadata_file}")
         
         return str(model_file)
         

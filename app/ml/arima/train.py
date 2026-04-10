@@ -198,10 +198,16 @@ def train_arima_model(
         predictions = fitted_model.fittedvalues if not callable(fitted_model.fittedvalues) else fitted_model.fittedvalues()
         rmse = np.sqrt(np.mean((series - predictions) ** 2))
         mae = np.mean(np.abs(series - predictions))
+        nonzero_mask = series != 0
+        if nonzero_mask.sum() > 0:
+            mape = float(np.mean(np.abs((series[nonzero_mask] - predictions[nonzero_mask]) / series[nonzero_mask])) * 100)
+        else:
+            mape = None
         
         logger.info(f"📊 Métricas de entrenamiento:")
         logger.info(f"   RMSE: {rmse:.4f}")
         logger.info(f"   MAE: {mae:.4f}")
+        logger.info(f"   MAPE: {mape:.4f}%" if mape is not None else "   MAPE: N/A (valores cero en la serie)")
         
         # 7. Crear directorio
         model_dir = Path(model_path)
@@ -235,6 +241,7 @@ def train_arima_model(
             'bic': float(bic_val),
             'rmse': float(rmse),
             'mae': float(mae),
+            'mape': mape,
             'longitud': len(series)
         }
         

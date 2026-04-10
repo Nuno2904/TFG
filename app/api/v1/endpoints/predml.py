@@ -320,10 +320,25 @@ def get_model_info(
                     "bic": metadata.get('bic'),
                     "rmse": metadata.get('rmse'),
                     "mae": metadata.get('mae'),
+                    "mape": metadata.get('mape'),
                     "data_points": metadata.get('longitud', metadata.get('length'))
                 }
             except Exception as e:
                 logger.warning(f"Could not load ARIMA metadata for model {model_id}: {str(e)}")
+                response["training_metrics"] = None
+        
+        # Add training metrics for Prophet models
+        elif model.model_type.lower() == "prophet" and model_status == "entrenado":
+            try:
+                metadata = MLStorageService.load_prophet_metadata(model.model_path)
+                response["training_metrics"] = {
+                    "rmse": metadata.get('rmse'),
+                    "mae": metadata.get('mae'),
+                    "mape": metadata.get('mape'),
+                    "data_points": metadata.get('longitud')
+                }
+            except Exception as e:
+                logger.warning(f"Could not load Prophet metadata for model {model_id}: {str(e)}")
                 response["training_metrics"] = None
         
         return response
