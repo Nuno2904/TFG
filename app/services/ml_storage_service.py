@@ -185,8 +185,8 @@ class MLStorageService:
         
         model_dir = Path(model_dir_path)
         
-        # Search for .json file in directory
-        json_files = list(model_dir.glob("*.json"))
+        # Search for .json file in directory, excluding metadata files
+        json_files = [f for f in model_dir.glob("*.json") if not f.name.endswith("_metadata.json")]
         
         if not json_files:
             raise FileNotFoundError(f"No JSON model file found in directory: {model_dir}")
