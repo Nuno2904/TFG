@@ -213,6 +213,7 @@ def predict(
             return {
                 "model_id": model.id,
                 "model_name": model.name,
+                "model_type": "prophet",
                 "model_path": model.model_path,
                 "dataset_id": model.dataset_id,
                 "periods": request.periods,
