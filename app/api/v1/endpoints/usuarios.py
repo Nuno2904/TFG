@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.db.session import get_db
 from app.models import Usuario
-from app.schemas import UsuarioRegister, UsuarioOut, UsuarioUpdate, ChangePasswordRequest
+from app.schemas import UsuarioRegister, UsuarioOut, UsuarioUpdate, ChangePasswordRequest, ChangeUsernameRequest, ChangeUsernameRequest
 from app.security import (
     hash_password,
     get_current_user,
@@ -255,7 +255,52 @@ def change_password(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# �🗑️ User Deletion
+# ✏️ Change Username
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.patch(
+    "/me/username",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    summary="Change Username",
+    description="Change authenticated user's username"
+)
+def change_username(
+    data: ChangeUsernameRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    ✏️ Change current user's username.
+
+    Raises:
+        HTTPException 400: Username is already taken
+    """
+    existing = db.scalars(
+        select(Usuario).where(
+            Usuario.username == data.username,
+            Usuario.id != current_user.id
+        )
+    ).first()
+
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ese nombre de usuario ya está en uso"
+        )
+
+    current_user.username = data.username
+    db.commit()
+
+    return {
+        "message": "Nombre de usuario actualizado exitosamente",
+        "username": current_user.username
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 🗑️ User Deletion
 # ═══════════════════════════════════════════════════════════════════════════
 
 

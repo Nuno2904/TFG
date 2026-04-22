@@ -278,9 +278,22 @@ def validate_arima_series(df: pd.DataFrame) -> dict:
             length_check['valido'] and 
             not outlier_check['es_problematico']
         )
+
+        # 4. Construir mensaje de error cuando la serie no es válida
+        error_msg = None
+        if not length_check['valido']:
+            error_msg = length_check.get('aviso', 'La serie temporal es demasiado corta para ARIMA/SARIMA.')
+        elif outlier_check['es_problematico']:
+            error_msg = outlier_check.get(
+                'aviso',
+                f"La serie contiene demasiados outliers extremos ({outlier_check.get('pct_outliers', '?')}%). "
+                "ARIMA/SARIMA no puede modelar series con valores atípicos tan pronunciados. "
+                "Considera limpiar o transformar los datos antes de entrenar."
+            )
         
         return {
             'valido': es_valido,
+            'error': error_msg,
             'serie_numerica': numeric_col,
             'longitud': series.shape[0],
             'tiene_estacionalidad': seasonality_check.get('tiene_estacionalidad'),

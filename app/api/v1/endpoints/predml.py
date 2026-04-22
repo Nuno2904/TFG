@@ -390,7 +390,7 @@ def get_plots(
         # Get and validate model
         model = get_trained_model(model_id, current_user.id, db)
         
-        logger.info(f"Generating plots for model {model_id}")
+        logger.info(f"Generating component plots for model {model_id}")
         
         # Load Prophet model using centralized function
         prophet_model = MLStorageService.load_prophet_model_from_directory(model.model_path)
@@ -398,33 +398,73 @@ def get_plots(
         # Make forecast
         future_df = prophet_model.make_future_dataframe(periods=periods)
         forecast = prophet_model.predict(future_df)
-        
-                # Helper function to convert matplotlib figure to base64
-        def fig_to_base64(fig):
-            """Convert matplotlib figure to base64 string"""
+
+        # Helper: convert matplotlib figure to base64 PNG data URI
+        def fig_to_base64(fig) -> str:
             buffer = io.BytesIO()
             fig.savefig(buffer, format='png', bbox_inches='tight', dpi=100)
             buffer.seek(0)
-            image_base64 = base64.b64encode(buffer.getvalue()).decode()
+            b64 = base64.b64encode(buffer.getvalue()).decode()
             plt.close(fig)
-            return image_base64
-        
-        # Generate forecast plot using Prophet's .plot() method
-        logger.info("📈 Generating forecast plot...")
-        forecast_fig = prophet_model.plot(forecast)
-        forecast_plot_b64 = fig_to_base64(forecast_fig)
-        
-        # Generate components plot using Prophet's .plot_components() method
-        logger.info("📊 Generating components plot...")
-        components_fig = prophet_model.plot_components(forecast)
-        components_plot_b64 = fig_to_base64(components_fig)
-        
+            return f"data:image/png;base64,{b64}"
+
+        # Helper: build a simple single-component figure from forecast column
+        def plot_component(col: str, title: str, xlabel: str = "Fecha", ylabel: str = "Valor"):
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.plot(forecast["ds"], forecast[col], color="#2dd4bf", linewidth=1.5)
+            ax.set_title(title, fontsize=13)
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
+            ax.tick_params(axis="x", rotation=30)
+            fig.tight_layout()
+            return fig
+
+        # --- Trend plot (always present) ---
+        trend_fig = plot_component("trend", "Tendencia", ylabel="Tendencia")
+        trend_b64 = fig_to_base64(trend_fig)
+
+        # --- Daily plot (present when daily seasonality was fitted) ---
+        daily_b64 = None
+        if "daily" in forecast.columns:
+            # Prophet stores ONE complete day (00:00–23:59) in the forecast;
+            # extract a single representative day for a cleaner plot.
+            representative_day = forecast[["ds", "daily"]].head(24)
+            if len(representative_day) < 2:
+                representative_day = forecast[["ds", "daily"]]
+            fig_d, ax_d = plt.subplots(figsize=(10, 4))
+            ax_d.plot(representative_day["ds"], representative_day["daily"],
+                      color="#818cf8", linewidth=1.5)
+            ax_d.set_title("Estacionalidad Diaria", fontsize=13)
+            ax_d.set_xlabel("Hora del día")
+            ax_d.set_ylabel("Efecto")
+            ax_d.tick_params(axis="x", rotation=30)
+            fig_d.tight_layout()
+            daily_b64 = fig_to_base64(fig_d)
+
+        # --- Weekly plot (present when weekly seasonality was fitted) ---
+        weekly_b64 = None
+        if "weekly" in forecast.columns:
+            # Show one representative week (7 days)
+            representative_week = forecast[["ds", "weekly"]].head(7)
+            if len(representative_week) < 2:
+                representative_week = forecast[["ds", "weekly"]]
+            fig_w, ax_w = plt.subplots(figsize=(10, 4))
+            ax_w.plot(representative_week["ds"], representative_week["weekly"],
+                      color="#fb923c", linewidth=1.5)
+            ax_w.set_title("Estacionalidad Semanal", fontsize=13)
+            ax_w.set_xlabel("Día de la semana")
+            ax_w.set_ylabel("Efecto")
+            ax_w.tick_params(axis="x", rotation=30)
+            fig_w.tight_layout()
+            weekly_b64 = fig_to_base64(fig_w)
+
         return {
             "model_id": model.id,
             "model_name": model.name,
             "periods": periods,
-            "forecast_plot": f"data:image/png;base64,{forecast_plot_b64}",
-            "components_plot": f"data:image/png;base64,{components_plot_b64}"
+            "trend_plot": trend_b64,
+            "daily_plot": daily_b64,
+            "weekly_plot": weekly_b64,
         }
     
     except HTTPException:

@@ -100,6 +100,52 @@ class ChangePasswordRequest(BaseModel):
     )
 
 
+class ChangeUsernameRequest(BaseModel):
+    """Schema for changing the authenticated user's username."""
+
+    username: str = Field(
+        ...,
+        min_length=3,
+        max_length=100,
+        description="New username (3-100 characters)"
+    )
+
+
+class PasswordResetRequest(BaseModel):
+    """Schema for requesting a password-reset email."""
+
+    email: EmailStr = Field(..., description="Email address of the account to reset")
+
+
+class PasswordResetConfirm(BaseModel):
+    """Schema for confirming a password reset with a token."""
+
+    token: str = Field(..., description="Password-reset JWT token received by email")
+    new_password: str = Field(
+        ...,
+        min_length=10,
+        description="New password (minimum 10 characters)"
+    )
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        errors = []
+        if len(v) < 10:
+            errors.append("al menos 10 caracteres")
+        if not re.search(r"[A-Z]", v):
+            errors.append("al menos una letra mayúscula")
+        if not re.search(r"[a-z]", v):
+            errors.append("al menos una letra minúscula")
+        if not re.search(r"\d", v):
+            errors.append("al menos un dígito")
+        if not re.search(r"[!@#$%^&*()\-_=+\[\]{};:',.<>?/\\|`~\"£€]", v):
+            errors.append("al menos un carácter especial (!@#$%^&*...)")
+        if errors:
+            raise ValueError("La contraseña debe tener: " + ", ".join(errors))
+        return v
+
+
 class UsuarioOut(BaseModel):
     """
     Schema for user response (public data only).

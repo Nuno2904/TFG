@@ -107,6 +107,54 @@ def create_access_token(data: Dict[str, Any], expires_delta: timedelta | None = 
     return encoded_jwt
 
 
+def create_password_reset_token(user_id: int, email: str) -> str:
+    """
+    Create a short-lived JWT token used for password reset.
+
+    Args:
+        user_id: ID of the user requesting the reset
+        email: Email of the user (extra verification layer)
+
+    Returns:
+        Encoded JWT token valid for PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+    """
+    expire = datetime.utcnow() + timedelta(
+        minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+    )
+    payload = {
+        "purpose": "password_reset",
+        "user_id": user_id,
+        "email": email,
+        "exp": expire,
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def verify_password_reset_token(token: str) -> dict:
+    """
+    Decode and validate a password-reset JWT token.
+
+    Args:
+        token: JWT token from the reset email link
+
+    Returns:
+        Decoded payload dict with user_id and email
+
+    Raises:
+        HTTPException 400: If the token is invalid, expired, or not a reset token
+    """
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("purpose") != "password_reset":
+            raise ValueError("Token no es de restablecimiento de contraseña")
+        return payload
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El enlace de restablecimiento no es válido o ha expirado. Solicita uno nuevo."
+        )
+
+
 def verify_token(token: str) -> TokenData:
     """
     Verify and decode a JWT token.

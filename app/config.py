@@ -17,6 +17,7 @@ class Settings(BaseSettings):
         - Database configuration
         - JWT/Security tokens
         - Application metadata
+        - Email / SMTP
     """
     
     # 🗄️ Database Configuration
@@ -26,6 +27,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
     
     # 📂 Storage Configuration
     STORAGE_PATH: str = "storage"
@@ -35,6 +37,17 @@ class Settings(BaseSettings):
     APP_NAME: str = "TFG API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
+    
+    # 🌐 Frontend URL (used in password-reset links)
+    FRONTEND_URL: str = "http://91.9.101.47:81"
+    
+    # 📧 SMTP / Email Configuration
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_USE_TLS: bool = False   # True = SMTP_SSL (port 465); False = STARTTLS (port 587)
+    FROM_EMAIL: Optional[str] = None
     
     class Config:
         """Pydantic configuration for Settings."""

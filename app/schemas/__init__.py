@@ -8,6 +8,9 @@ from app.schemas.usuario import (
     Token,
     TokenData,
     ChangePasswordRequest,
+    ChangeUsernameRequest,
+    PasswordResetRequest,
+    PasswordResetConfirm,
 )
 from app.schemas.ml import (
     MLModelBase,
@@ -25,6 +28,9 @@ __all__ = [
     "Token",
     "TokenData",
     "ChangePasswordRequest",
+    "ChangeUsernameRequest",
+    "PasswordResetRequest",
+    "PasswordResetConfirm",
     "MLModelBase",
     "MLModelCreate",
     "MLModelUpdate",
