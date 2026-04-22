@@ -44,7 +44,10 @@ def _send_email(to_email: str, subject: str, html_body: str) -> bool:
             server.starttls()
 
         if settings.SMTP_USER and settings.SMTP_PASSWORD:
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            # Google App Passwords are displayed with spaces (e.g. "xxxx xxxx xxxx xxxx")
+            # but must be used without them for SMTP authentication.
+            smtp_password = settings.SMTP_PASSWORD.replace(" ", "")
+            server.login(settings.SMTP_USER, smtp_password)
 
         server.sendmail(msg["From"], [to_email], msg.as_string())
         server.quit()
