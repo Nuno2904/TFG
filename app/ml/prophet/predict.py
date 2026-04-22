@@ -123,7 +123,7 @@ def get_training_samples(model_path: str, n_samples: int = 100) -> dict:
     try:
         logger.info(f"📥 Cargando datos de entrenamiento Prophet desde: {model_path}")
         
-        prophet_model = MLStorageService.luego (model_path)
+        prophet_model = MLStorageService.load_prophet_model_from_directory(model_path)
         
         # Prophet almacena los datos de entrenamiento en model.history
         history = prophet_model.history
