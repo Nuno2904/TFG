@@ -46,6 +46,15 @@ services:
       APP_NAME: TFG API
       APP_VERSION: 1.0.0
       DEBUG: ${DEBUG:-false}
+
+      # 📧 Email / SMTP Configuration
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-False}
+      FROM_EMAIL: ${FROM_EMAIL:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://91.9.101.47:81}
     volumes:
       - ./storage:/app/storage
       - ./app:/app/app
