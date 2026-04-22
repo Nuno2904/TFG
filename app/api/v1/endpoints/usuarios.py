@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.db.session import get_db
 from app.models import Usuario
-from app.schemas import UsuarioRegister, UsuarioOut, UsuarioUpdate, ChangePasswordRequest, ChangeUsernameRequest, ChangeUsernameRequest
+from app.schemas import UsuarioRegister, UsuarioOut, UsuarioUpdate, ChangePasswordRequest, ChangeUsernameRequest, DeleteAccountRequest
 from app.security import (
     hash_password,
     get_current_user,
@@ -311,17 +311,27 @@ def change_username(
     description="Delete authenticated user's account"
 )
 def delete_me(
+    body: DeleteAccountRequest,
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> None:
     """
-    🗑️ Delete current authenticated user's account.
+    \U0001f5d1\ufe0f Delete current authenticated user's account.
+    
+    Requires password confirmation for security.
     
     Args:
+        body: Request body with password confirmation
         current_user: Current authenticated user
         db: Database session
     """
-    # 🗑️ Delete user
+    # \u2705 Verify password before deleting
+    if not verify_password(body.password, current_user.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contrase\u00f1a incorrecta"
+        )
+    # \U0001f5d1\ufe0f Delete user (cascades to datasets and models)
     db.delete(current_user)
     db.commit()
 

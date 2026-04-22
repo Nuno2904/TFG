@@ -11,6 +11,7 @@ from app.schemas.usuario import (
     ChangeUsernameRequest,
     PasswordResetRequest,
     PasswordResetConfirm,
+    DeleteAccountRequest,
 )
 from app.schemas.ml import (
     MLModelBase,
