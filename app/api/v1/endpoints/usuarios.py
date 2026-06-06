@@ -258,10 +258,7 @@ def change_password(
     except Exception:
         pass  # Log is handled inside the email service
     
-    return {
-        "message": "Contraseña actualizada exitosamente",
-        "email": current_user.email
-    }
+    return {"message": "Contraseña actualizada exitosamente"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
