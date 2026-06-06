@@ -218,7 +218,6 @@ def get_user_datasets(
             "id": dataset.id,
             "name": dataset.name,
             "data_points": len(dataset.data_entries),
-            "created_at": dataset.created_at,
         }
         for dataset in user.datasets
     ]
@@ -330,9 +329,10 @@ def get_user_models(
     models_data = [
         {
             "id": model.id,
+            "name": model.name,
             "model_type": model.model_type,
             "dataset_id": model.dataset_id,
-            "accuracy": model.accuracy,
+            "status": model.status,
             "created_at": model.created_at,
         }
         for model in user.ml_models

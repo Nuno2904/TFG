@@ -21,6 +21,7 @@ from app.security import (
     verify_password_reset_token,
 )
 from app.config import settings
+from app.security.security import get_current_user
 from app.services.email_service import send_welcome_email, send_password_reset_email, send_password_reset_link_email
 
 
@@ -222,120 +223,28 @@ def reset_password(
 
 
 
-@router.post(
-    "/register",
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔧 Debug Endpoint
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get(
+    "/debug-token",
     response_model=dict,
-    status_code=status.HTTP_201_CREATED,
-    summary="User Registration",
-    description="Register a new user account"
+    status_code=status.HTTP_200_OK,
+    summary="Debug Token",
+    description="Debug endpoint to verify JWT token is valid"
 )
-def register(
-    user_data: UsuarioRegister,
-    db: Session = Depends(get_db)
+def debug_token(
+    current_user: Usuario = Depends(get_current_user),
 ) -> dict:
     """
-    📝 Registration endpoint.
-    
-    Creates a new user account with the provided credentials.
-    
-    Args:
-        user_data: UsuarioCreate with email, password, username, full_name
-        db: Database session
-        
-    Returns:
-        Success message and user ID
-        
-    Raises:
-        HTTPException 400: Email or username already exists
+    🔧 Debug endpoint to verify token and user info.
     """
-    # ✅ Check if email already exists
-    existing_email = db.scalars(
-        select(Usuario).where(Usuario.email == user_data.email)
-    ).first()
-    
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    # ✅ Check if username already exists
-    existing_username = db.scalars(
-        select(Usuario).where(Usuario.username == user_data.username)
-    ).first()
-    
-    if existing_username:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already taken"
-        )
-    
-    # 🔐 Hash password and create user
-    hashed_password = hash_password(user_data.password)
-    
-    new_user = Usuario(
-        username=user_data.username,
-        email=user_data.email,
-        password=hashed_password,
-        tipo="usuario"
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
     return {
-        "message": "User registered successfully",
-        "user_id": new_user.id,
-        "email": new_user.email
+        "status": "✅ Token is valid",
+        "user_id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "tipo": current_user.tipo,
     }
-
-
-@router.post(
-    "/login",
-    response_model=Token,
-    status_code=status.HTTP_200_OK,
-    summary="User Login",
-    description="Authenticate user and return JWT access token"
-)
-def login(
-    credentials: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
-) -> Token:
-    """
-    🔓 Login endpoint.
-    
-    Authenticates a user using email and password.
-    Returns a JWT token valid for API requests.
-    
-    Args:
-        credentials: OAuth2 form with username (email) and password
-        db: Database session
-        
-    Returns:
-        Token with access_token and token_type
-        
-    Raises:
-        HTTPException 403: Invalid email or password
-    """
-    # 🔍 Query user by email
-    user = db.scalars(
-        select(Usuario).where(Usuario.email == credentials.username)
-    ).first()
-    
-    # ✅ Validate user exists and password is correct
-    if not user or not verify_password(credentials.password, user.password):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid email or password"
-        )
-    
-    # 🎫 Generate JWT token
-    access_token = create_access_token(
-        data={
-            "user_id": user.id,
-            "user_type": user.tipo
-        }
-    )
-    
-    return Token(access_token=access_token, token_type="bearer")
