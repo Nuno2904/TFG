@@ -86,6 +86,7 @@ class ChangePasswordRequest(BaseModel):
     Schema for changing user password.
     
     Requires verification of current password for security.
+    User must provide new password twice for confirmation.
     """
     
     current_password: str = Field(
@@ -96,6 +97,11 @@ class ChangePasswordRequest(BaseModel):
         ...,
         min_length=10,
         description="New password (minimum 10 characters, requires uppercase, lowercase, digit and special character)"
+    )
+    confirm_new_password: str = Field(
+        ...,
+        min_length=10,
+        description="Confirmation of new password (must match new_password)"
     )
 
     @field_validator("new_password")
@@ -114,6 +120,14 @@ class ChangePasswordRequest(BaseModel):
             errors.append("al menos un car\u00e1cter especial (!@#$%^&*...)")
         if errors:
             raise ValueError("La contrase\u00f1a debe tener: " + ", ".join(errors))
+        return v
+
+    @field_validator("confirm_new_password")
+    @classmethod
+    def passwords_match(cls, v: str, info) -> str:
+        """Validate that new_password and confirm_new_password match."""
+        if "new_password" in info.data and v != info.data["new_password"]:
+            raise ValueError("Las contrase\u00f1as no coinciden. Por favor, verifica que ambas sean id\u00e9nticas.")
         return v
 
 
