@@ -21,7 +21,7 @@ from app.security import (
     verify_password_reset_token,
 )
 from app.config import settings
-from app.services.email_service import send_welcome_email, send_password_reset_email
+from app.services.email_service import send_welcome_email, send_password_reset_email, send_password_reset_link_email
 
 
 router = APIRouter(
@@ -162,7 +162,7 @@ def request_password_reset(
     if user:
         reset_token = create_password_reset_token(user.id, user.email)
         try:
-            send_password_reset_email(
+            send_password_reset_link_email(
                 to_email=user.email,
                 username=user.username or user.email,
                 reset_token=reset_token,
@@ -209,6 +209,14 @@ def reset_password(
 
     user.password = hash_password(data.new_password)
     db.commit()
+
+    try:
+        send_password_reset_email(
+            to_email=user.email,
+            username=user.username or user.email,
+        )
+    except Exception:
+        pass  # Log is handled inside the email service
 
     return {"message": "Contraseña restablecida exitosamente. Ya puedes iniciar sesión."}
 
