@@ -176,7 +176,6 @@ def list_all_datasets(
             "id": dataset.id,
             "nombre": dataset.name,
             "usuario_id": dataset.user_id,
-            "created_at": dataset.created_at,
         }
         for dataset in datasets
     ]
