@@ -174,8 +174,8 @@ def list_all_datasets(
     datasets_data = [
         {
             "id": dataset.id,
-            "nombre": dataset.nombre if hasattr(dataset, 'nombre') else dataset.name,
-            "usuario_id": dataset.usuario_id if hasattr(dataset, 'usuario_id') else dataset.user_id,
+            "nombre": dataset.name,
+            "usuario_id": dataset.user_id,
             "created_at": dataset.created_at,
         }
         for dataset in datasets
@@ -287,9 +287,9 @@ def list_all_models(
     models_data = [
         {
             "id": model.id,
-            "nombre": model.nombre if hasattr(model, 'nombre') else model.name,
-            "usuario_id": model.usuario_id if hasattr(model, 'usuario_id') else model.user_id,
-            "tipo_modelo": model.tipo_modelo if hasattr(model, 'tipo_modelo') else model.model_type,
+            "nombre": model.name,
+            "usuario_id": model.user_id,
+            "tipo_modelo": model.model_type,
             "created_at": model.created_at,
         }
         for model in models
