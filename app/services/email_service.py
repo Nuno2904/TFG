@@ -102,7 +102,10 @@ def send_welcome_email(to_email: str, username: str) -> bool:
 
 def send_password_reset_email(to_email: str, username: str) -> bool:
     """
-    Send a password change confirmation email.
+    🔐 Send password change NOTIFICATION email (NO TOKEN).
+    
+    This is a simple confirmation email sent AFTER password is successfully changed.
+    No token or reset link is included - only a notification.
 
     Args:
         to_email: User's email
