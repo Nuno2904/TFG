@@ -76,52 +76,6 @@ class MLStorageService:
         return model_dir
     
     @staticmethod
-    def get_user_models_directory(user_id: int) -> Path:
-        """
-        Get the directory path for all models of a user.
-        
-        Args:
-            user_id: ID of the user
-            
-        Returns:
-            Path object pointing to the user's models directory
-        """
-        user_dir = MODELS_DIR / f"user_{user_id}"
-        return user_dir
-    
-    @staticmethod
-    def get_dataset_models_directory(user_id: int, dataset_id: int) -> Path:
-        """
-        Get the directory path for all models of a specific dataset.
-        
-        Args:
-            user_id: ID of the user
-            dataset_id: ID of the dataset
-            
-        Returns:
-            Path object pointing to the dataset models directory
-        """
-        dataset_dir = MODELS_DIR / f"user_{user_id}" / f"dataset_{dataset_id}"
-        return dataset_dir
-    
-    @staticmethod
-    def get_model_file_path(user_id: int, dataset_id: int, model_name: str, filename: str = "model.json") -> Path:
-        """
-        Get the full file path for a model file.
-        
-        Args:
-            user_id: ID of the user
-            dataset_id: ID of the dataset
-            model_name: Name of the model
-            filename: Name of the file (default: model.pkl)
-            
-        Returns:
-            Path object pointing to the model file
-        """
-        model_dir = MLStorageService.get_model_directory(user_id, dataset_id, model_name)
-        return model_dir / filename
-    
-    @staticmethod
     def delete_model_directory(user_id: int, dataset_id: int, model_name: str) -> bool:
         """
         Delete the entire model directory including all files.
@@ -147,21 +101,6 @@ class MLStorageService:
         except Exception as e:
             logger.error(f"❌ Error deleting model directory {model_dir}: {str(e)}")
             return False
-    
-    @staticmethod
-    def get_relative_path(user_id: int, dataset_id: int, model_name: str) -> str:
-        """
-        Get the relative path for database storage.
-        
-        Args:
-            user_id: ID of the user
-            dataset_id: ID of the dataset
-            model_name: Name of the model
-            
-        Returns:
-            String with relative path format: user_{user_id}/dataset_{dataset_id}/{model_name}
-        """
-        return f"user_{user_id}/dataset_{dataset_id}/{model_name}"
     
     @staticmethod
     def load_prophet_model_from_directory(model_dir_path: str):

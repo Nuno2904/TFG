@@ -2,26 +2,12 @@
 #si el modelo está entrenado, lo cargamos y hacemos la predicción.
 #si el modelo no está entrenado, devolvemos un error diciendo que el modelo no está entrenado y que no se pueden hacer predicciones.
 #tiene que poder predecir: intervalso de confianza, erores relativ, error absoluto, ha de ser capaz de ostrar varios tipos de gráficas. 
-from prophet.serialize import model_to_json, model_from_json
-from prophet.plot import plot_plotly, plot_components_plotly
+from prophet.serialize import model_from_json
 import pandas as pd
 import logging
 from pathlib import Path
-from sqlalchemy.orm import Session
 from app.services.ml_storage_service import MLStorageService
-from app.models.data import Data
-from app.models.ml import MLModel
 import matplotlib.pyplot as plt
-
-# Importar plotly de forma segura
-try:
-    import plotly.graph_objects as go
-    PLOTLY_AVAILABLE = True
-except ImportError:
-    PLOTLY_AVAILABLE = False
-    logger_setup = logging.getLogger(__name__)
-    logger_setup.warning("⚠️ Plotly not installed. Interactive plots will not be available.")
-
 
 logger = logging.getLogger(__name__)
 
@@ -73,40 +59,6 @@ def predict_prophet_model(
         logger.error(f"❌ Error durante la predicción: {str(e)}")
         raise Exception(f"Error durante la predicción: {str(e)}")
     
-
-
-def prophet_plot(model, forecast):
-    """
-    Genera gráficos de las predicciones del modelo Prophet.
-    
-    Args:
-        model: El modelo Prophet entrenado.
-        forecast: El DataFrame con las predicciones generadas por el modelo.
-    Returns:
-        dict: Diccionario con las figuras de los gráficos generados.
-    """
-    try:
-        if not PLOTLY_AVAILABLE:
-            raise ImportError("Plotly is not installed. Install it with: pip install plotly")
-        
-        # Gráfico de la predicción
-        fig1 = plot_plotly(model, forecast)
-        
-        # Gráfico de los componentes (tendencia, estacionalidad, etc.)
-        fig2 = plot_components_plotly(model, forecast)
-        
-        return {
-            "forecast_plot": fig1.to_json(),
-            "components_plot": fig2.to_json()    
-        }
-    
-    except ImportError as e:
-        logger.error(f"❌ Error importando librerías de gráficos: {str(e)}")
-        raise ImportError(f"Error importando librerías de gráficos: {str(e)}")
-    
-    except Exception as e:
-        logger.error(f"❌ Error generando gráficos: {str(e)}")
-        raise Exception(f"Error generando gráficos: {str(e)}")
 
 
 def get_training_samples(model_path: str, n_samples: int = 100) -> dict:

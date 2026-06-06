@@ -33,32 +33,6 @@
 
 ---
 
-## 3. Cambio de contraseña por email (password reset)
-
-### Backend
-
-#### `app/security/security.py`
-- **`create_password_reset_token(user_id, email) → str`** — Genera un JWT firmado con `purpose: "password_reset"` y `exp` a 60 minutos. Usa la misma `SECRET_KEY` que los tokens de acceso.
-- **`verify_password_reset_token(token) → dict`** — Decodifica el JWT, valida que `purpose == "password_reset"` y que no haya expirado. Lanza `HTTPException(400)` si es inválido o expirado.
-
-#### `app/api/v1/endpoints/auth.py`
-- **`POST /auth/request-password-reset`** — Recibe `{ "email": "..." }`. Busca el usuario; si existe, genera el token y llama a `send_password_reset_email()`. **Siempre devuelve HTTP 200** (anti-enumeración: no revela si el email existe).
-- **`POST /auth/reset-password`** — Recibe `{ "token": "...", "new_password": "..." }`. Verifica el JWT, busca el usuario y actualiza la contraseña con bcrypt.
-
-### Frontend
-
-#### `companion-ui/src/pages/Profile.tsx`
-- Sección "Seguridad": botón **"Solicitar cambio de contraseña"** que llama a `requestPasswordReset(email)`.
-- Tras enviar muestra mensaje de confirmación (no redirige ni requiere acción adicional).
-
-#### `companion-ui/src/pages/ResetPassword.tsx` *(archivo nuevo)*
-- Página accesible en `/reset-password?token=xxx` (el enlace del email redirige aquí).
-- Lee el token de la URL con `useSearchParams`.
-- Formulario con campo contraseña + confirmar contraseña.
-- Llama a `confirmPasswordReset(token, newPassword)`.
-- Muestra estado de éxito con enlace a Login.
-
-#### `companion-ui/src/App.tsx`
 - Añadida ruta `<Route path="/reset-password" element={<ResetPasswordPage />} />`.
 
 ---

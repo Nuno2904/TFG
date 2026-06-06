@@ -20,7 +20,7 @@ from app.db.session import get_db
 from app.models import MLModel, Usuario, Dataset
 from app.models.ml import ModelStatus
 from app.security import get_current_user
-from app.ml.prophet.predict import predict_prophet_model, prophet_plot
+from app.ml.prophet.predict import predict_prophet_model
 from app.ml.prophet.predict import get_training_samples as get_prophet_training_samples
 from app.ml.arima.predict import predict_arima_model, get_training_samples as get_arima_training_samples
 from app.services.ml_storage_service import MLStorageService
