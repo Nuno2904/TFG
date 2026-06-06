@@ -18,6 +18,7 @@ from app.security import (
     get_admin_user,
     verify_password,
 )
+from app.services.email_service import send_password_reset_email
 
 
 router = APIRouter(
@@ -247,6 +248,15 @@ def change_password(
     
     # 💾 Save changes
     db.commit()
+    
+    # 📧 Send confirmation email
+    try:
+        send_password_reset_email(
+            to_email=current_user.email,
+            username=current_user.username or current_user.email,
+        )
+    except Exception:
+        pass  # Log is handled inside the email service
     
     return {
         "message": "Contraseña actualizada exitosamente",
