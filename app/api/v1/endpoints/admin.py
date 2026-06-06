@@ -154,6 +154,40 @@ def delete_user_by_id(
 
 
 @router.get(
+    "/datasets",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    summary="List All Datasets",
+    description="Get all datasets from all users (admin only)"
+)
+def list_all_datasets(
+    admin_user: Usuario = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    📊 List all datasets from all users.
+    
+    Returns all datasets with their metadata.
+    """
+    datasets = db.scalars(select(Dataset)).all()
+    
+    datasets_data = [
+        {
+            "id": dataset.id,
+            "nombre": dataset.nombre if hasattr(dataset, 'nombre') else dataset.name,
+            "usuario_id": dataset.usuario_id if hasattr(dataset, 'usuario_id') else dataset.user_id,
+            "created_at": dataset.created_at,
+        }
+        for dataset in datasets
+    ]
+    
+    return {
+        "total_datasets": len(datasets_data),
+        "datasets": datasets_data
+    }
+
+
+@router.get(
     "/users/{user_id}/datasets",
     response_model=dict,
     status_code=status.HTTP_200_OK,
@@ -230,6 +264,41 @@ def delete_dataset_by_id(
 # ═══════════════════════════════════════════════════════════════════════════
 # 🤖 Model Management
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get(
+    "/models",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    summary="List All Models",
+    description="Get all ML models from all users (admin only)"
+)
+def list_all_models(
+    admin_user: Usuario = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    🤖 List all ML models from all users.
+    
+    Returns all models with their metadata.
+    """
+    models = db.scalars(select(MLModel)).all()
+    
+    models_data = [
+        {
+            "id": model.id,
+            "nombre": model.nombre if hasattr(model, 'nombre') else model.name,
+            "usuario_id": model.usuario_id if hasattr(model, 'usuario_id') else model.user_id,
+            "tipo_modelo": model.tipo_modelo if hasattr(model, 'tipo_modelo') else model.model_type,
+            "created_at": model.created_at,
+        }
+        for model in models
+    ]
+    
+    return {
+        "total_models": len(models_data),
+        "models": models_data
+    }
 
 
 @router.get(
