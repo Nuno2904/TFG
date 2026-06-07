@@ -40,7 +40,8 @@ def get_datasets(
         dataset_list = [
             {
                 "id": dataset.id,
-                "name": dataset.name
+                "name": dataset.name,
+                "row_count": len(dataset.data_entries)
             }
             for dataset in datasets
         ]

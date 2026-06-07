@@ -65,6 +65,7 @@ class MLModelOut(BaseModel):
     model_path: str = Field(..., description="File path where the model is stored")
     status: str = Field(..., description="Model status: entrenado, en_entrenamiento, or error")
     error_message: Optional[str] = Field(None, description="Error details if training failed")
+    low_data_warning: Optional[bool] = Field(None, description="True if trained with fewer than 24 observations")
     
     model_config = {"from_attributes": True}
 

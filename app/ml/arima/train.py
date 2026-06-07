@@ -81,7 +81,7 @@ def train_arima_model(
         validation = validate_arima_series(df)
         
         if not validation['valido']:
-            raise ValueError(f"Dataset inválido: {validation.get('error', 'Error desconocido')}")
+            raise ValueError(validation.get('error', 'El dataset no cumple los requisitos mínimos para entrenar ARIMA/SARIMA.'))
         
         serie_numerica = validation['serie_numerica']
         series = df[serie_numerica].dropna()

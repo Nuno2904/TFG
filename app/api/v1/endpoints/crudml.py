@@ -75,14 +75,18 @@ def train_model_background(
             if model_type == "prophet":
                 logger.info(f"🤖 Entrenando modelo Prophet...")
                 train_prophet_model(df, model_name, user_id, dataset_id, model_path)
-                
+
                 # Actualizar estado a "entrenado" en BD
                 model = db.query(MLModel).filter(MLModel.id == model_id).first()
                 if model:
                     model.status = "entrenado"
                     model.error_message = None
+                    model.low_data_warning = len(df) < 24
                     db.commit()
-                    logger.info(f"✅ Modelo {model_id} entrenado exitosamente")
+                    if model.low_data_warning:
+                        logger.warning(f"⚠️ Modelo {model_id} entrenado con solo {len(df)} observaciones (< 24). Las predicciones pueden no ser fiables.")
+                    else:
+                        logger.info(f"✅ Modelo {model_id} entrenado exitosamente")
             
             elif model_type == "arima":
                 logger.info(f"🤖 Entrenando modelo ARIMA...")

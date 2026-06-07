@@ -10,7 +10,7 @@ Stores information about ML models created by users:
 - Error information if training failed
 """
 
-from sqlalchemy import Column, Integer, String, ForeignKey, TIMESTAMP, func, Enum
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, TIMESTAMP, func, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from typing import TYPE_CHECKING, List
@@ -121,6 +121,14 @@ class MLModel(Base):
         String(500),
         nullable=True,
         doc="Error details if training failed"
+    )
+
+    # ⚠️ Low Data Warning (Prophet only)
+    low_data_warning: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=True,
+        default=False,
+        doc="True if model was trained with fewer than 24 observations — predictions may not be reliable"
     )
     
     # 🔄 Relationships

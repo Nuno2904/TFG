@@ -210,10 +210,10 @@ def validate_minimum_length(series: pd.Series, min_length: int = 50) -> dict:
         'longitud': longitud,
         'min_recomendado': min_length,
         'aviso': (
-            f"❌ ARIMA requiere ≥{min_length} datos. Solo tienes {longitud}. "
-            f"Con pocas observaciones, los parámetros ARIMA(p,d,q) no se estiman de forma confiable. "
-            f"Considera: (1) Agregar más datos históricos, (2) Usar Prophet en su lugar (más flexible con datos cortos), "
-            f"o (3) Usar ARIMA estándar con parámetros (1,1,1) fijos (no automático)."
+            f"No hay suficientes datos para entrenar ARIMA/SARIMA. "
+            f"Tu dataset tiene {longitud} observaciones y se necesitan al menos {min_length}. "
+            f"Con pocos datos los parámetros del modelo no se pueden estimar de forma fiable. "
+            f"Prueba a usar Prophet, que funciona mejor con series cortas."
             if not es_valido else (
                 f"⚠️ Solo {longitud} obs. Se recomienda ≥100 para estimaciones más robustas."
                 if longitud < 100 else None
