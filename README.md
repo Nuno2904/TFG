@@ -1,297 +1,113 @@
-"""
-📝 Updated Project README
+# TimeSeriesLab — Backend API
 
-Your FastAPI application has been restructured with best practices!
-"""
+Plataforma REST API para forecasting de series temporales con modelos de Machine Learning.
 
-# 🎯 TFG - Modern FastAPI Application
+**Tecnología:** Python · FastAPI · Prophet · ARIMA/SARIMA · SQLite/PostgreSQL · Docker
 
-A production-ready FastAPI application with user management, authentication, and role-based access control.
+---
 
-## ✨ Features
+## Qué hace este proyecto
 
-- ✅ **FastAPI Framework** - Fast, modern, and intuitive web framework
-- 🔐 **JWT Authentication** - Secure token-based authentication
-- 👤 **User Management** - Complete user CRUD operations
-- � **Dataset Management** - Upload and manage datasets
-- 🤖 **ML Model Management** ✨ - Create, train, and manage ML models with automatic storage
-- �🛡️ **Role-Based Access** - Admin and user role differentiation
-- 🗄️ **SQLAlchemy ORM** - Modern async-ready database layer
-- ⚙️ **Pydantic Settings** - Environment-based configuration management
-- 📖 **Auto Documentation** - Interactive API docs (Swagger & ReDoc)
-- 🔒 **Password Security** - Bcrypt hashing with configurable rounds
-- 🎯 **Type Hints** - Full Python type annotations
-- 📝 **Comprehensive Docstrings** - Well-documented code with examples
+Permite a usuarios registrados:
 
-## 📁 Project Structure
+1. Subir datasets con series temporales (CSV o XLSX, máx. 5 MB, 2 columnas: fecha + valor).
+2. Entrenar modelos Prophet o ARIMA/SARIMA (entrenamiento en background, sin bloquear el cliente).
+3. Obtener predicciones futuras con intervalos de confianza del 95%.
+4. Visualizar resultados mediante gráficas PNG codificadas en Base64.
+5. Gestionar su perfil, cambiar contraseña y recuperarla por email.
 
-```
-TFG/
-├── app/                          # 📦 Main application package
-│   ├── __init__.py              # Package initialization
-│   ├── config.py                # ⚙️ Settings with BaseSettings
-│   ├── core/                    # 🔧 Core utilities
-│   │   └── __init__.py
-│   ├── db/                      # 🗄️ Database configuration
-│   │   ├── __init__.py
-│   │   ├── base.py              # SQLAlchemy base & engine
-│   │   └── session.py           # Session management
-│   ├── models/                  # 📊 SQLAlchemy ORM models
-│   │   ├── __init__.py
-│   │   ├── usuario.py           # User model
-│   │   ├── dataset.py           # Dataset model
-│   │   ├── data.py              # Data model
-│   │   └── ml.py                # 🤖 ML Model (NEW)
-│   ├── schemas/                 # 📋 Pydantic validation schemas
-│   │   ├── __init__.py
-│   │   ├── usuario.py           # User schemas
-│   │   └── ml.py                # 🤖 ML Model schemas (NEW)
-│   ├── services/                # 🔧 Business logic services
-│   │   ├── __init__.py
-│   │   ├── file_service.py      # File handling
-│   │   └── ml_storage_service.py # 🤖 ML storage management (NEW)
-│   ├── security/                # 🔐 Authentication & security
-│   │   ├── __init__.py
-│   │   └── security.py          # JWT & password utilities
-│   └── api/                     # 📡 API endpoints
-│       ├── __init__.py
-│       └── v1/                  # API v1
-│           ├── __init__.py
-│           └── endpoints/       # Route handlers
-│               ├── __init__.py
-│               ├── auth.py      # 🔑 Login endpoint
-│               ├── usuarios.py  # 👤 User endpoints
-│               ├── datasets.py  # 📊 Dataset endpoints
-│               └── ml.py        # 🤖 ML Model endpoints (NEW)
-├── main.py                      # 🚀 Application entry point
-├── .env                         # 🔐 Environment variables (local)
-├── .env.example                 # 📝 Environment template
-├── requirements.txt             # 📦 Python dependencies
-├── ML_GUIDE.md                  # 📖 ML System documentation (NEW)
-├── README.md                    # 📖 This file
-├── STRUCTURE.md                 # 📊 Project architecture
-├── MIGRATION_GUIDE.md           # 🔄 Migration reference
-└── RESTRUCTURING_SUMMARY.md    # 📝 Change summary
-```
+El panel de administración permite a usuarios con rol `admin` listar, ver y eliminar usuarios, datasets y modelos.
 
-## 🚀 Getting Started
+---
 
-### 1️⃣ Install Dependencies
+## Puesta en marcha en desarrollo
 
 ```bash
-# Create virtual environment
+# 1. Entorno virtual
 python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Linux/Mac
 
-# Activate virtual environment
-# Windows:
-venv\\Scripts\\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
+# 2. Dependencias
 pip install -r requirements.txt
-```
 
-### 2️⃣ Configure Environment
-
-```bash
-# Copy example environment file
+# 3. Variables de entorno
 cp .env.example .env
+# Editar .env: DATABASE_URL, SECRET_KEY (mínimo 32 chars)
 
-# Edit .env with your configuration
+# 4. Servidor
+python main.py
+# API en http://localhost:8000
+# Docs en http://localhost:8000/docs
 ```
 
-### 3️⃣ Initialize Database
+## Despliegue en producción (Docker)
 
 ```bash
-# The database will be automatically initialized on app startup
-# For SQLite: test.db will be created automatically
+docker compose up -d --build
 ```
 
-### 4️⃣ Run Application
+Ver [setup_server.md](setup_server.md) para la guía completa paso a paso.
+
+---
+
+## Variables de entorno clave (`.env`)
+
+| Variable | Obligatoria | Descripción |
+|----------|-------------|-------------|
+| `DATABASE_URL` | Sí | `sqlite:///./app.db` o cadena PostgreSQL |
+| `SECRET_KEY` | Sí | Clave aleatoria (≥ 32 chars) para firmar JWT |
+| `ALGORITHM` | No | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | `30` (minutos) |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` | No | Para emails de bienvenida y reset de contraseña |
+| `FRONTEND_URL` | No | URL base para los enlaces del email de reset |
+
+---
+
+## Endpoints principales
+
+**Auth:** `POST /api/v1/auth/register` · `POST /api/v1/auth/login` · `POST /api/v1/auth/request-password-reset` · `POST /api/v1/auth/reset-password`
+
+**Usuarios:** `GET /usuarios/me` · `PUT /usuarios/me` · `PATCH /usuarios/me/username` · `POST /usuarios/me/change-password` · `DELETE /usuarios/me`
+
+**Ficheros/Datasets:** `POST /files/upload` · `GET /files/my-files` · `DELETE /files/{id}` · `GET /datasets` · `GET /datasets/id/{id}/data`
+
+**Modelos ML:** `POST /models` · `GET /models` · `GET /models/{id}` · `PUT /models/{id}` · `DELETE /models/{id}`
+
+**Predicciones:** `POST /predictions/predict` · `POST /predictions/arima/predict` · `GET /predictions/models/{id}/info` · `GET /predictions/plots/{id}` · `GET /predictions/arima/plots/{id}`
+
+**Admin:** `GET /admin/dashboard` · `GET /admin/users` · `GET /admin/users/{id}` · `DELETE /admin/users/{id}` · `DELETE /admin/datasets/{id}` · `DELETE /admin/models/{id}`
+
+Documentación interactiva completa en `http://localhost:8000/docs`.
+
+---
+
+## Tests
 
 ```bash
-# Using uvicorn directly
-uvicorn main:app --reload
-
-# The app will be available at: http://localhost:8000
+pytest tests/ -v
+pytest tests/ --cov=app --cov-report=html
 ```
 
-## 📖 API Documentation
+Ver [tests/README.md](tests/README.md) para detalles de la suite de tests.
 
-Once the app is running, visit:
+---
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI JSON**: http://localhost:8000/openapi.json
+## Documentación
 
-## 🔐 Authentication Flow
-
-### 1. Register User
-
-```bash
-POST /api/v1/usuarios
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "securepassword123",
-  "tipo": "usuario"
-}
-```
-
-### 2. Login
-
-```bash
-POST /api/v1/auth/login
-Content-Type: application/x-www-form-urlencoded
-
-username=user@example.com&password=securepassword123
-```
-
-Response:
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
-  "token_type": "bearer"
-}
-```
-
-### 3. Use Token
-
-```bash
-GET /api/v1/usuarios/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-```
-
-## 🛠️ Development Tools
-
-### Code Formatting
-
-```bash
-# Format code with Black
-black app/ main.py
-
-# Sort imports with isort
-isort app/ main.py
-```
-
-### Linting
-
-```bash
-# Check code style with flake8
-flake8 app/ main.py
-
-# Type checking with mypy
-mypy app/ main.py
-```
-
-### Testing
-
-```bash
-# Run tests
-pytest
-
-# Run with coverage
-pytest --cov=app
-```
-
-## 📝 Key Improvements Made
-
-✅ **Project Structure**
-- Organized into logical modules (db, models, schemas, security, api)
-- Clear separation of concerns
-- Easy to scale and maintain
-
-✅ **Configuration Management**
-- Uses Pydantic BaseSettings from `pydantic-settings`
-- Environment variables loaded from `.env` file
-- Type-safe configuration
-
-✅ **Security**
-- Bcrypt password hashing with configurable rounds
-- JWT token authentication with expiration
-- Admin role verification
-- OAuth2 scheme implementation
-
-✅ **Code Quality**
-- Full type hints throughout
-- Comprehensive docstrings with emojis
-- Descriptive comments explaining logic
-- PEP 8 compliant formatting
-
-✅ **API Documentation**
-- Field descriptions in schemas
-- Endpoint summaries and descriptions
-- HTTP status code documentation
-- Clear error responses
-
-✅ **Bug Fixes**
-- Fixed typo: "Usuaario" → "Usuario"
-- Fixed password field mapping in user update
-- Improved error handling and messages
-- Better validation messages
-
-✅ **Developer Experience**
-- Clear logging setup
-- Health check endpoint
-- Root endpoint with documentation links
-- Modular router structure
-- Easy dependency injection with FastAPI
-
-## 🔄 Environment Variables
-
-```env
-# Database connection
-DATABASE_URL=postgresql://user:pass@localhost/dbname
-
-# JWT Configuration
-SECRET_KEY=your-secret-key-min-32-chars
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# Application
-APP_NAME=TFG API
-APP_VERSION=1.0.0
-DEBUG=False
-```
-
-## 📚 API Endpoints Summary
-
-### 🔐 Authentication
-- `POST /api/v1/auth/login` - User login
-
-### 👤 Users
-- `POST /api/v1/usuarios` - Register new user
-- `GET /api/v1/usuarios/me` - Get current user
-- `GET /api/v1/usuarios/{email}` - Get user by email
-- `PUT /api/v1/usuarios/me` - Update current user
-- `DELETE /api/v1/usuarios/me` - Delete current user
-- `DELETE /api/v1/usuarios/{email}` - Delete user (admin only)
-
-### 📊 Datasets
-- `GET /api/v1/datasets` - Get all user datasets
-- `POST /api/v1/datasets` - Create new dataset
-- `GET /api/v1/datasets/{id}` - Get dataset details
-- `DELETE /api/v1/datasets/{id}` - Delete dataset
-
-### 🤖 ML Models ✨ NEW
-- `POST /api/v1/models` - Create new ML model
-- `GET /api/v1/models` - Get all user ML models
-- `GET /api/v1/models/{model_id}` - Get model details
-- `GET /api/v1/models/dataset/{dataset_id}` - Get models by dataset
-- `PUT /api/v1/models/{model_id}` - Update model
-- `DELETE /api/v1/models/{model_id}` - Delete model
-
-For detailed ML Model documentation, see [ML_GUIDE.md](ML_GUIDE.md)
-
-## 🤝 Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Run linting and tests
-4. Submit a pull request
-
-## 📄 License
-
-This project is part of TFG (Trabajo Fin de Grado).
+| Documento | Contenido |
+|-----------|-----------|
+| [Memoria.md](Memoria.md) | Documentación técnica completa del TFG (arquitectura, requisitos, decisiones de diseño) |
+| [docs/api/API_DOCUMENTATION.md](docs/api/API_DOCUMENTATION.md) | Referencia detallada de todos los endpoints con ejemplos |
+| [docs/guides/BACKEND_FRONTEND_INTEGRATION_GUIDE.md](docs/guides/BACKEND_FRONTEND_INTEGRATION_GUIDE.md) | Guía de integración para el equipo frontend |
+| [docs/guides/setup_server.md](docs/guides/setup_server.md) | Guía de despliegue en servidor con Docker |
+| [docs/guides/variasSesionesEnNav.md](docs/guides/variasSesionesEnNav.md) | sessionStorage vs localStorage y gestión multi-sesión |
+| [docs/ml/CAMBIOS_ARIMA_SARIMA.md](docs/ml/CAMBIOS_ARIMA_SARIMA.md) | Implementación de la detección automática ARIMA/SARIMA |
+| [docs/ml/MAERMSEMAPE.md](docs/ml/MAERMSEMAPE.md) | Explicación de métricas de evaluación (MAE, RMSE, MAPE) |
+| [docs/CambiosGordos.md](docs/CambiosGordos.md) | Historial de cambios del proyecto |
+| [docs/bibliografia.md](docs/bibliografia.md) | Bibliografía académica (formato APA 7ª ed.) |
+| [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) | Diseño del sistema, componentes y flujo de datos |
+| [docs/api/ENDPOINTS.md](docs/api/ENDPOINTS.md) | Documentación completa de endpoints con ejemplos cURL |
+| [docs/guides/USAGE_GUIDE.md](docs/guides/USAGE_GUIDE.md) | Guía paso a paso para usuarios finales |
+| [setsPrueba/README.md](setsPrueba/README.md) | Descripción de los datasets de prueba para validación |
+| [setsPrueba/README_COMPARACION_PROPHET_ARIMA.md](setsPrueba/README_COMPARACION_PROPHET_ARIMA.md) | Comparación empírica Prophet vs ARIMA con datasets específicos |

@@ -1312,7 +1312,7 @@ GET /
 2. POST /auth/login
    ├─ Username: usuario@example.com
    ├─ Password: MiPassword123
-   └─ Response: access_token (guardarlo en localStorage)
+   └─ Response: access_token (guardarlo en sessionStorage)
 
 3. POST /files/upload
    ├─ Header: Authorization: Bearer {token}
@@ -1432,7 +1432,7 @@ GET /
 
 ### Seguridad
 
-- Guardar token en `localStorage` o `sessionStorage`
+- Guardar token en `sessionStorage` (aísla la sesión por pestaña; si necesitas persistir entre cierres de navegador, usa `localStorage`)
 - Incluir token en header `Authorization: Bearer {token}` en todas las solicitudes
 - No mostrar tokens en logs ni en la UI
 - Token caduca en 30 minutos → usuario debe login de nuevo

@@ -29,38 +29,27 @@ Last Updated: March 11, 2026 | Status: ✅ Complete & Production Ready
 
 ### `/docs/api/` - API Reference
 - **🔌 [ENDPOINTS.md](./api/ENDPOINTS.md)** - Complete endpoint documentation
-  - All endpoints with request/response examples
-  - Status codes and error handling
-  - Rate limiting and pagination
-  - Authentication examples
+- **📋 [API_DOCUMENTATION.md](./api/API_DOCUMENTATION.md)** - Detailed endpoint reference with examples
 
 ### `/docs/architecture/` - System Design
 - **🏗️ [ARCHITECTURE.md](./architecture/ARCHITECTURE.md)** - Deep dive into system design
-  - Component overview
-  - Data flow diagrams
-  - Database schema
-  - ML module structure
-  - System workflows
-  - Performance metrics
-  - Security architecture
+- **📝 [CambiosGordos.md](./CambiosGordos.md)** - Project changelog
 
 ### `/docs/guides/` - User Guides
 - **📘 [USAGE_GUIDE.md](./guides/USAGE_GUIDE.md)** - Step-by-step user guide
-  - Registration and authentication
-  - File upload process
-  - Model creation
-  - Making predictions
-  - Visualizations
-  - Best practices
-  - Troubleshooting guide
+- **🔗 [BACKEND_FRONTEND_INTEGRATION_GUIDE.md](./guides/BACKEND_FRONTEND_INTEGRATION_GUIDE.md)** - Frontend integration guide
+- **🚀 [setup_server.md](./guides/setup_server.md)** - Docker deployment guide
+- **🔐 [variasSesionesEnNav.md](./guides/variasSesionesEnNav.md)** - sessionStorage vs localStorage guide
+
+### `/docs/ml/` - Machine Learning
+- **🤖 [CAMBIOS_ARIMA_SARIMA.md](./ml/CAMBIOS_ARIMA_SARIMA.md)** - ARIMA/SARIMA auto-detection implementation
+- **📊 [MAERMSEMAPE.md](./ml/MAERMSEMAPE.md)** - Evaluation metrics (MAE, RMSE, MAPE)
+
+### `/docs/` - Academic
+- **📚 [bibliografia.md](./bibliografia.md)** - Academic bibliography (APA 7th ed.)
 
 ### `/tests/` - Testing
 - **🧪 [tests/README.md](../tests/README.md)** - Testing documentation
-  - How to run tests
-  - Test coverage
-  - Writing tests
-  - Fixtures available
-  - CI/CD setup
 
 ---
 
@@ -366,9 +355,17 @@ App
 Docs
 ├── docs/README.md ..................... Main doc page
 ├── docs/INDEX.md (this file) ......... Navigation
+├── docs/CambiosGordos.md .............. Project changelog
+├── docs/bibliografia.md ............... Academic bibliography
 ├── docs/api/ENDPOINTS.md ............. API reference
+├── docs/api/API_DOCUMENTATION.md ..... Detailed API reference
 ├── docs/architecture/ARCHITECTURE.md . System design
-└── docs/guides/USAGE_GUIDE.md ........ User guide
+├── docs/guides/USAGE_GUIDE.md ........ User guide
+├── docs/guides/BACKEND_FRONTEND_INTEGRATION_GUIDE.md
+├── docs/guides/setup_server.md ........ Deployment guide
+├── docs/guides/variasSesionesEnNav.md . sessionStorage guide
+├── docs/ml/CAMBIOS_ARIMA_SARIMA.md ... ARIMA/SARIMA implementation
+└── docs/ml/MAERMSEMAPE.md ............. Evaluation metrics
 
 Tests
 ├── tests/README.md ................... Testing guide
@@ -418,6 +415,7 @@ Tests
 - [x] Dataset management
 - [x] Prophet model training & prediction
 - [x] ARIMA model training with auto_arima
+- [x] SARIMA (automatic detection, seasonal ARIMA)
 - [x] Confidence intervals & error metrics
 - [x] PNG plot visualization (base64)
 - [x] Background task training
@@ -432,15 +430,12 @@ Tests
 
 ### 📋 Planned Enhancements
 
-- [ ] SARIMA (Seasonal ARIMA)
 - [ ] Multivariate models
 - [ ] Ensemble methods
 - [ ] Model comparison dashboard
 - [ ] API rate limiting UI
 - [ ] Advanced visualizations (ACF/PACF plots)
 - [ ] WebSocket real-time status
-- [ ] GraphQL API layer
-- [ ] Mobile app support
 
 ---
 
