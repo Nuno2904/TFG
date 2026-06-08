@@ -75,3 +75,6 @@ local_settings.py
 models/*.pkl
 models/*.h5
 *.joblib
+
+# 📄 Documentación TFG (memoria local, no se sube al repo)
+memoria/
