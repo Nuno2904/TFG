@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F4FAFF"/>
+      <stop offset="100%" stop-color="#E8F4FF"/>
+    </linearGradient>
+    <linearGradient id="areafill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#0A84FF" stop-opacity="0.01"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="9" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+
+  <!-- Faint grid lines -->
+  <g stroke="#D4EAFF" stroke-width="1.5">
+    <line x1="52" y1="175" x2="462" y2="175"/>
+    <line x1="52" y1="263" x2="462" y2="263"/>
+    <line x1="52" y1="351" x2="462" y2="351"/>
+  </g>
+
+  <!-- Area fill under historical line -->
+  <path
+    d="M 60,392 L 112,370 L 164,386 L 216,334 L 268,346 L 320,288 L 348,216 L 348,420 Z"
+    fill="url(#areafill)"/>
+
+  <!-- Historical line (solid #0A84FF) -->
+  <polyline
+    points="60,392 112,370 164,386 216,334 268,346 320,288 348,216"
+    fill="none"
+    stroke="#0A84FF"
+    stroke-width="15"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <!-- Data point dots on historical line -->
+  <g fill="white" stroke="#0A84FF" stroke-width="4">
+    <circle cx="112" cy="370" r="6"/>
+    <circle cx="164" cy="386" r="6"/>
+    <circle cx="216" cy="334" r="6"/>
+    <circle cx="268" cy="346" r="6"/>
+    <circle cx="320" cy="288" r="6"/>
+  </g>
+
+  <!-- Vertical separator historical / forecast -->
+  <line x1="348" y1="148" x2="348" y2="430"
+        stroke="#B8D8F0" stroke-width="1.5" stroke-dasharray="8,6"/>
+
+  <!-- Forecast line (dashed #60C5FF) -->
+  <polyline
+    points="348,216 388,194 428,172 458,154"
+    fill="none"
+    stroke="#60C5FF"
+    stroke-width="11"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-dasharray="22,14"/>
+
+  <!-- Glowing dot — outer halos -->
+  <circle cx="458" cy="154" r="34" fill="#60C5FF" opacity="0.15"/>
+  <circle cx="458" cy="154" r="22" fill="#60C5FF" opacity="0.28"/>
+  <!-- Glowing dot — core -->
+  <circle cx="458" cy="154" r="13" fill="#0A84FF" filter="url(#glow)"/>
+  <!-- Glowing dot — highlight -->
+  <circle cx="453" cy="149" r="4" fill="white" opacity="0.75"/>
+</svg>
